@@ -25,11 +25,11 @@ TITLE_TERMS  = _search_config.get("title_filter_terms", [])
 load_dotenv()
 
 RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
-if not RAPIDAPI_KEY or RAPIDAPI_KEY == "your_key_here":
+if not RAPIDAPI_KEY or RAPIDAPI_KEY in {"your_key_here", "your_rapidapi_key_here"}:
     sys.exit("ERROR: Set RAPIDAPI_KEY in your .env file.")
 
 APIFY_TOKEN = os.getenv("APIFY_TOKEN")
-if not APIFY_TOKEN:
+if not APIFY_TOKEN or APIFY_TOKEN in {"your_key_here", "your_apify_token_here"}:
     sys.exit("ERROR: Set APIFY_TOKEN in your .env file.")
 
 # ---------- 2. JSearch ----------

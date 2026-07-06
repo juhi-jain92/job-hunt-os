@@ -6,12 +6,15 @@ and writes to the single "Job Hunt OS" spreadsheet.
 
 import os
 import gspread
+from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
+
+load_dotenv()
 
 # Path to the service account key file
 CREDS_PATH = os.path.join(os.path.dirname(__file__), "credentials", "sheets_key.json")
 SHEET_NAME  = "Job Hunt OS"
-OWNER_EMAIL = "juhijaindtu@gmail.com"  # sheet gets shared here on first create
+OWNER_EMAIL = os.getenv("GOOGLE_SHEET_OWNER_EMAIL", "anchit008@gmail.com")  # sheet gets shared here on first create
 
 # These scopes tell Google what the service account is allowed to do:
 # - spreadsheets: read/write cell data
@@ -24,7 +27,7 @@ SCOPES = [
 # Exact column order in the sheet — must match the header row
 COLUMNS = [
     "job_id", "title", "company", "location", "remote", "salary_text", "url",
-    "source", "posted_at", "ai_score", "adtech_score", "match_flag",
+    "source", "posted_at", "ai_score", "domain_score", "match_flag",
     "recommended_track", "cover_letter", "status", "notes", "description",
 ]
 
@@ -116,7 +119,7 @@ def append_new_jobs(sheet, jobs: list) -> int:
     return len(new_jobs)
 
 
-def update_scores(sheet, job_id: str, ai_score, adtech_score, match_flag: str, recommended_track: str):
+def update_scores(sheet, job_id: str, ai_score, domain_score, match_flag: str, recommended_track: str):
     """
     Finds the row for a given job_id and writes scoring results into it.
     Called once per job by scorer.py in step 2b.
@@ -127,7 +130,7 @@ def update_scores(sheet, job_id: str, ai_score, adtech_score, match_flag: str, r
         return
     row = cell.row
     sheet.update_cell(row, COL_INDEX["ai_score"],          ai_score)
-    sheet.update_cell(row, COL_INDEX["adtech_score"],      adtech_score)
+    sheet.update_cell(row, COL_INDEX["domain_score"],      domain_score)
     sheet.update_cell(row, COL_INDEX["match_flag"],        match_flag)
     sheet.update_cell(row, COL_INDEX["recommended_track"], recommended_track)
 
@@ -183,7 +186,7 @@ def batch_write_scores(sheet, updates: list):
     Each item in `updates` is a dict with:
         row_num          int   — 1-based sheet row number
         ai_score         int/str
-        adtech_score     int/str
+        domain_score     int/str
         match_flag       str   — track label
         recommended_track str  — "Tier X | TRACK"
         notes            str   — scorer reason
@@ -191,7 +194,7 @@ def batch_write_scores(sheet, updates: list):
         write_status     bool  — only write status if True (i.e. cell was empty)
 
     Column layout (1-based, after adding "remote" as col E):
-        J=10 ai_score  K=11 adtech_score  L=12 match_flag  M=13 recommended_track
+        J=10 ai_score  K=11 domain_score  L=12 match_flag  M=13 recommended_track
         N=14 cover_letter (never touched)  O=15 status  P=16 notes
     """
     tab = sheet.title   # actual tab name, needed in A1 range notation
@@ -204,7 +207,7 @@ def batch_write_scores(sheet, updates: list):
             "range": f"'{tab}'!J{row}:M{row}",
             "values": [[
                 u["ai_score"],
-                u["adtech_score"],
+                u["domain_score"],
                 u["match_flag"],
                 u["recommended_track"],
             ]],

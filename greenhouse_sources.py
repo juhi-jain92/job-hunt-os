@@ -1,5 +1,5 @@
 """
-greenhouse_sources.py — Fetches PM jobs from target companies via the
+greenhouse_sources.py — Fetches jobs from target companies via the
 public Greenhouse jobs board API. No auth required.
 """
 
@@ -21,14 +21,14 @@ with open(_config_path) as f:
 
 GREENHOUSE_SLUGS = _config.get("greenhouse_slugs", [])
 
-# ── PM title filter ───────────────────────────────────────────────────────────
+# ── Title filter ──────────────────────────────────────────────────────────────
 
 from config.filters import detect_remote
 
 _search_config = json.loads(open(os.path.join(BASE, "config", "search_config.json")).read())
 TITLE_TERMS = _search_config.get("title_filter_terms", [])
 
-def _is_pm_relevant(title: str) -> bool:
+def _is_relevant(title: str) -> bool:
     t = title.strip().lower()
     return any(term in t for term in TITLE_TERMS)
 
@@ -103,12 +103,12 @@ def fetch_greenhouse_jobs() -> list:
         all_jobs.extend(_fetch_company(slug))
         time.sleep(0.5)
 
-    # Filter to PM-relevant titles only — same logic as job_search.py pre-filter
+    # Filter to relevant titles only — same logic as job_search.py pre-filter
     before = len(all_jobs)
-    pm_jobs = [j for j in all_jobs if _is_pm_relevant(j["title"])]
-    print(f"    → {len(pm_jobs)} PM-relevant jobs out of {before} total across all companies")
-    return pm_jobs
+    relevant_jobs = [j for j in all_jobs if _is_relevant(j["title"])]
+    print(f"    → {len(relevant_jobs)} relevant jobs out of {before} total across all companies")
+    return relevant_jobs
 
 if __name__ == "__main__":
     jobs = fetch_greenhouse_jobs()
-    print(f"\nTotal PM jobs found: {len(jobs)}")
+    print(f"\nTotal jobs found: {len(jobs)}")

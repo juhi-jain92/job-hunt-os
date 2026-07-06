@@ -52,7 +52,7 @@ def _stable_id(prefix: str, *parts) -> str:
 
 def fetch_vc_portfolio_jobs() -> list:
     """
-    Fetches PM-related jobs from a16z, YC, and Sequoia portfolio companies
+    Fetches data and ML infrastructure jobs from a16z, YC, and Sequoia portfolio companies
     via parseforge/vc-portfolio-jobs-aggregator-scraper.
     Note: this actor doesn't return job descriptions — description will be "".
     """
@@ -61,7 +61,7 @@ def fetch_vc_portfolio_jobs() -> list:
         "parseforge~vc-portfolio-jobs-aggregator-scraper",
         {
             "firms":    ["a16z", "ycombinator", "sequoia"],
-            "keyword":  "product",  # narrows to PM-adjacent roles
+            "keyword":  "data engineer",
             "maxItems": 100,
         },
     )
@@ -94,14 +94,14 @@ def fetch_vc_portfolio_jobs() -> list:
 
 def fetch_wellfound_jobs() -> list:
     """
-    Fetches PM roles on Wellfound (Remote + Seattle) via
+    Fetches data and ML roles on Wellfound (Remote + Seattle) via
     blackfalcondata/wellfound-scraper. enrichDetail=True gets full descriptions.
     """
     print("  [Apify] Fetching Wellfound jobs ...")
     items = _run_actor(
         "blackfalcondata~wellfound-scraper",
         {
-            "roles":        ["product-manager"],
+            "roles":        ["data-engineer", "machine-learning-engineer"],
             "location":     ["remote", "seattle"],
             "maxResults":   50,
             "enrichDetail": True,  # fetches full job description per listing
@@ -143,4 +143,3 @@ def fetch_wellfound_jobs() -> list:
 
     print(f"    → {len(results)} jobs")
     return results
-

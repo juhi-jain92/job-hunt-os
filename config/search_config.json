@@ -1,35 +1,40 @@
 {
   "_comment": "Operational config for job_search.py and match_scorer.py. Commit this file — it contains no personal data. Edit search_queries and title_filter_terms for your target role.",
-
   "search_queries": [
-    "Senior Product Manager",
-    "Staff Product Manager",
-    "Principal Product Manager",
-    "Group Product Manager",
-    "Associate Director Product",
-    "Director of Product",
-    "AI Product Manager",
-    "Product Manager AI",
-    "Agentic AI Product Manager",
-    "Applied AI Product Manager",
-    "Product Strategy",
-    "AI Strategy",
-    "Strategy Lead Product",
-    "Product Lead AI"
+    "Senior Data Engineer",
+    "Staff Data Engineer",
+    "Principal Data Engineer",
+    "Data Platform Engineer",
+    "Senior Analytics Engineer",
+    "Staff Analytics Engineer",
+    "Senior ML Platform Engineer",
+    "Senior AI Infrastructure Engineer",
+    "Senior MLOps Engineer",
+    "Senior Machine Learning Infrastructure Engineer",
+    "Senior LLM Infrastructure Engineer",
+    "Senior Applied AI Engineer",
+    "Senior Machine Learning Engineer",
+    "Senior AI Engineer",
+    "Senior Software Engineer, Data"
   ],
-
   "title_filter_terms": [
-    "product manager", " pm ", "pm,", "pm -", "- pm",
-    "product lead", "product director", "group product",
-    "staff product", "principal product",
-    "associate director product", "director of product",
-    "director, product", "vp product", "head of product",
-    "product owner", "strategy lead", "ai strategy",
-    "product strategy"
+    "data engineer",
+    "data platform",
+    "analytics engineer",
+    "data infrastructure",
+    "ml platform",
+    "machine learning platform",
+    "machine learning engineer",
+    "ai infrastructure",
+    "llm infrastructure",
+    "mlops",
+    "ml ops",
+    "applied ai engineer",
+    "ai engineer",
+    "platform engineer"
   ],
-
   "scorer_settings": {
-    "model": "claude-sonnet-4-6",
-    "note": "Swap for any Anthropic model. claude-haiku-4-5-20251001 is cheaper and worth testing for scoring tasks."
+    "model": "glm-5.2",
+    "note": "ZhipuAI GLM model. Set ZAI_API_KEY in .env. Get keys at bigmodel.cn."
   }
 }
