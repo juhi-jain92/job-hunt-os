@@ -5,6 +5,7 @@ and writes to the single "Job Hunt OS" spreadsheet.
 """
 
 import os
+import sys
 import gspread
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
@@ -14,7 +15,9 @@ load_dotenv()
 # Path to the service account key file
 CREDS_PATH = os.path.join(os.path.dirname(__file__), "credentials", "sheets_key.json")
 SHEET_NAME  = "Job Hunt OS"
-OWNER_EMAIL = os.getenv("GOOGLE_SHEET_OWNER_EMAIL", "anchit008@gmail.com")  # sheet gets shared here on first create
+OWNER_EMAIL = os.getenv("GOOGLE_SHEET_OWNER_EMAIL")
+if not OWNER_EMAIL:
+    sys.exit("ERROR: Set GOOGLE_SHEET_OWNER_EMAIL in your .env file (the Google account that should own the sheet).")
 
 # These scopes tell Google what the service account is allowed to do:
 # - spreadsheets: read/write cell data

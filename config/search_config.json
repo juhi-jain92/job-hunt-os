@@ -1,47 +1,39 @@
 {
-  "_comment": "Operational config for job_search.py and match_scorer.py. Commit this file — it contains no personal data. Edit search_queries and title_filter_terms for your target role.",
+  "_comment": "Operational config for job_search.py and match_scorer.py. Commit this file — it contains no personal data. Edit search_queries, title_filter_terms, and apify_settings for your target role.",
   "search_queries": [
-    "Senior Data Engineer",
-    "Staff Data Engineer",
-    "Principal Data Engineer",
-    "Data Platform Engineer",
-    "Senior Analytics Engineer",
-    "Staff Analytics Engineer",
-    "Senior ML Platform Engineer",
-    "Senior AI Infrastructure Engineer",
-    "Senior MLOps Engineer",
-    "Senior Machine Learning Infrastructure Engineer",
-    "Senior LLM Infrastructure Engineer",
-    "Senior Applied AI Engineer",
-    "Senior Machine Learning Engineer",
-    "Senior AI Engineer",
-    "Senior Software Engineer, Data"
+    "Senior Product Manager",
+    "Staff Product Manager",
+    "Principal Product Manager",
+    "Group Product Manager",
+    "Associate Director Product",
+    "Director of Product",
+    "AI Product Manager",
+    "Product Manager AI",
+    "Agentic AI Product Manager",
+    "Applied AI Product Manager",
+    "Product Strategy",
+    "AI Strategy",
+    "Strategy Lead Product",
+    "Product Lead AI"
   ],
   "title_filter_terms": [
-    "data engineer",
-    "data platform",
-    "analytics engineer",
-    "data infrastructure",
-    "ml platform",
-    "machine learning platform",
-    "machine learning engineer",
-    "ai infrastructure",
-    "llm infrastructure",
-    "mlops",
-    "ml ops",
-    "applied ai engineer",
-    "ai engineer",
-    "platform engineer"
+    "product manager", " pm ", "pm,", "pm -", "- pm",
+    "product lead", "product director", "group product",
+    "staff product", "principal product",
+    "associate director product", "director of product",
+    "director, product", "vp product", "head of product",
+    "product owner", "strategy lead", "ai strategy",
+    "product strategy"
   ],
   "apify_settings": {
-    "vc_portfolio_keyword": "data engineer",
-    "wellfound_roles": ["data-engineer", "machine-learning-engineer"],
-    "wellfound_locations": ["remote", "seattle"],
-    "note": "vc_portfolio_keyword narrows the VC portfolio scraper. wellfound_roles must match Wellfound's URL slug format (e.g. 'product-manager', 'data-engineer')."
+    "vc_portfolio_keyword": "product manager",
+    "wellfound_roles": ["product-manager"],
+    "wellfound_locations": ["remote", "san-francisco"],
+    "note": "vc_portfolio_keyword narrows the VC portfolio scraper (leave empty to get all roles). wellfound_roles must use Wellfound URL slug format (e.g. 'product-manager', 'data-engineer')."
   },
   "scorer_settings": {
-    "provider": "zhipuai",
-    "model": "glm-5.2",
-    "note": "Set provider to 'anthropic', 'openai', or 'zhipuai'. Model must match the provider (e.g. claude-sonnet-4-6 for Anthropic, glm-5.2 for ZhipuAI)."
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
+    "note": "Set provider to 'anthropic', 'openai', or 'zhipuai'. Model must match the provider (e.g. claude-sonnet-4-6 for Anthropic, gpt-4o-mini for OpenAI, glm-4-flash for ZhipuAI)."
   }
 }

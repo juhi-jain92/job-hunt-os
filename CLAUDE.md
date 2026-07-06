@@ -1,6 +1,6 @@
-# AGENTS.md (OpenCode)
+# CLAUDE.md
 
-> This file is read by OpenCode. Claude Code reads `CLAUDE.md` instead — keep both in sync.
+> `AGENTS.md` is the OpenCode equivalent of this file. Keep both in sync when updating AI assistant instructions.
 
 ## Commands
 - Set up Python locally with `python3 -m venv .venv`, `source .venv/bin/activate`, then `pip install -r requirements.txt`.
@@ -18,8 +18,8 @@
 ## Config And Secrets
 - Do not read or expose private local inputs unless explicitly asked: `.env`, `credentials/`, `resume/`, and `config/context_store.json` are gitignored for a reason.
 - LLM provider is set in `config/search_config.json` → `scorer_settings.provider` (`"anthropic"`, `"openai"`, or `"zhipuai"`). Set the matching API key in `.env`. The scorer validates only the key for the active provider at startup.
-- For scorer calls to GLM-5.2, keep `thinking={"type": "disabled"}` unless intentionally budgeting for reasoning tokens; otherwise `finish_reason=length` can return empty `message.content`.
-- `credentials/sheets_key.json` must exist locally for Sheets access; the created sheet is named `Job Hunt OS` and is shared to `GOOGLE_SHEET_OWNER_EMAIL` or the default in `sheets.py`.
+- For ZhipuAI GLM calls, keep `thinking={"type": "disabled"}` — omitting it causes `finish_reason=length` which returns empty `message.content`.
+- `credentials/sheets_key.json` must exist locally for Sheets access; the created sheet is named `"Job Hunt OS"` and is shared to `GOOGLE_SHEET_OWNER_EMAIL` (required — no default).
 - `config/search_config.json` is committed operational config: role queries, title filters, Apify scraper settings, and scorer model. `config/context_store.json` is the private candidate profile copied from `config/context_store.template.json`.
 - Apify scraper targeting is configured in `config/search_config.json` → `apify_settings` (not hardcoded in `apify_sources.py`).
 
@@ -35,5 +35,5 @@
 - Apify VC portfolio jobs have no descriptions, so they score on title/company only. Wellfound uses `enrichDetail=True` for full descriptions and may fail non-fatally.
 
 ## GitHub Actions
-- `.github/workflows/daily_job_search.yml` runs discovery only on Python 3.11 at `0 13 * * *` plus manual dispatch.
+- `.github/workflows/daily_job_search.yml` runs discovery only (`job_search.py`) on Python 3.11 at `0 13 * * *` UTC plus manual dispatch.
 - The workflow writes `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and `ZAI_API_KEY` to `.env` — only the one matching `scorer_settings.provider` needs to be set as a repo secret.
