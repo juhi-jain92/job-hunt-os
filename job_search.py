@@ -1,6 +1,6 @@
 """
 job_search.py — Orchestrates all job fetching: JSearch (RapidAPI) for broad
-PM queries, plus three Apify actors (VC portfolio, Wellfound, HN Who's Hiring).
+search queries, plus Apify actors (VC portfolio, Wellfound) and Greenhouse.
 Merges everything into one deduped list. No filtering — scoring happens later.
 """
 

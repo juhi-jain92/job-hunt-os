@@ -2,9 +2,12 @@
 apify_sources.py — Fetches jobs from two Apify actors and normalizes each
 into the same schema used by JSearch: {job_id, title, company, location,
 salary_text, url, description, source, posted_at, remote}.
+
+Role targeting is configured in config/search_config.json → apify_settings.
 """
 
 import hashlib
+import json
 import os
 import sys
 import requests
@@ -13,6 +16,14 @@ from config.filters import detect_remote
 
 load_dotenv()
 APIFY_TOKEN = os.getenv("APIFY_TOKEN")
+
+_BASE = os.path.dirname(__file__)
+_search_config = json.loads(open(os.path.join(_BASE, "config", "search_config.json")).read())
+_apify = _search_config.get("apify_settings", {})
+
+VC_KEYWORD         = _apify.get("vc_portfolio_keyword", "")
+WELLFOUND_ROLES    = _apify.get("wellfound_roles", [])
+WELLFOUND_LOCATIONS = _apify.get("wellfound_locations", ["remote"])
 
 APIFY_BASE = "https://api.apify.com/v2/acts"
 
@@ -52,19 +63,19 @@ def _stable_id(prefix: str, *parts) -> str:
 
 def fetch_vc_portfolio_jobs() -> list:
     """
-    Fetches data and ML infrastructure jobs from a16z, YC, and Sequoia portfolio companies
-    via parseforge/vc-portfolio-jobs-aggregator-scraper.
+    Fetches jobs from a16z, YC, and Sequoia portfolio companies via
+    parseforge/vc-portfolio-jobs-aggregator-scraper.
     Note: this actor doesn't return job descriptions — description will be "".
+    Keyword is configured in search_config.json → apify_settings.vc_portfolio_keyword.
     """
     print("  [Apify] Fetching VC portfolio jobs (a16z, YC, Sequoia) ...")
-    items = _run_actor(
-        "parseforge~vc-portfolio-jobs-aggregator-scraper",
-        {
-            "firms":    ["a16z", "ycombinator", "sequoia"],
-            "keyword":  "data engineer",
-            "maxItems": 100,
-        },
-    )
+    actor_input = {
+        "firms":    ["a16z", "ycombinator", "sequoia"],
+        "maxItems": 100,
+    }
+    if VC_KEYWORD:
+        actor_input["keyword"] = VC_KEYWORD
+    items = _run_actor("parseforge~vc-portfolio-jobs-aggregator-scraper", actor_input)
 
     results = []
     for item in items:
@@ -94,15 +105,16 @@ def fetch_vc_portfolio_jobs() -> list:
 
 def fetch_wellfound_jobs() -> list:
     """
-    Fetches data and ML roles on Wellfound (Remote + Seattle) via
-    blackfalcondata/wellfound-scraper. enrichDetail=True gets full descriptions.
+    Fetches jobs on Wellfound via blackfalcondata/wellfound-scraper.
+    enrichDetail=True gets full descriptions per listing.
+    Roles and locations are configured in search_config.json → apify_settings.
     """
     print("  [Apify] Fetching Wellfound jobs ...")
     items = _run_actor(
         "blackfalcondata~wellfound-scraper",
         {
-            "roles":        ["data-engineer", "machine-learning-engineer"],
-            "location":     ["remote", "seattle"],
+            "roles":        WELLFOUND_ROLES,
+            "location":     WELLFOUND_LOCATIONS,
             "maxResults":   50,
             "enrichDetail": True,  # fetches full job description per listing
         },

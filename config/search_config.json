@@ -33,9 +33,15 @@
     "ai engineer",
     "platform engineer"
   ],
+  "apify_settings": {
+    "vc_portfolio_keyword": "data engineer",
+    "wellfound_roles": ["data-engineer", "machine-learning-engineer"],
+    "wellfound_locations": ["remote", "seattle"],
+    "note": "vc_portfolio_keyword narrows the VC portfolio scraper. wellfound_roles must match Wellfound's URL slug format (e.g. 'product-manager', 'data-engineer')."
+  },
   "scorer_settings": {
     "provider": "zhipuai",
     "model": "glm-5.2",
-    "note": "Set provider to 'anthropic' or 'zhipuai'. Model must match the provider (e.g. claude-sonnet-4-6 for Anthropic, glm-5.2 for ZhipuAI)."
+    "note": "Set provider to 'anthropic', 'openai', or 'zhipuai'. Model must match the provider (e.g. claude-sonnet-4-6 for Anthropic, glm-5.2 for ZhipuAI)."
   }
 }

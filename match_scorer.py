@@ -5,6 +5,7 @@ then batch-writes all scores back to the sheet.
 
 Supported providers (set in config/search_config.json → scorer_settings.provider):
   "anthropic" — Claude models via ANTHROPIC_API_KEY
+  "openai"    — GPT models via OPENAI_API_KEY
   "zhipuai"   — GLM models via ZAI_API_KEY
 """
 

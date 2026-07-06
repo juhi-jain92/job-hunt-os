@@ -105,7 +105,7 @@ def append_new_jobs(sheet, jobs: list) -> int:
             job.get("source",      ""),
             job.get("posted_at",   ""),
             "",       # ai_score       — filled by scorer (step 2b)
-            "",       # adtech_score   — filled by scorer (step 2b)
+            "",       # domain_score   — filled by scorer (step 2b)
             "",       # match_flag     — filled by scorer (step 2b)
             "",       # recommended_track — filled by scorer (step 2b)
             "",       # cover_letter   — filled by cover letter step (step 2c)

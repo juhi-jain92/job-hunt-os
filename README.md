@@ -1,6 +1,6 @@
 # Job Hunt OS
 
-A personal agentic job search pipeline. Discovers roles across multiple sources daily, scores them against your criteria using an LLM, and surfaces the best ones for manual review.
+A personal agentic job search pipeline. Discovers jobs across multiple sources daily, scores them against your criteria using an LLM, and surfaces the best ones for manual review. Fully role-agnostic — configure your target titles and the pipeline adapts.
 
 Built by [Juhi Jain](https://www.linkedin.com/in/juhi-jain-4024a7104/), AI PM — as a portfolio project and a real tool used actively in a job search.
 
@@ -160,6 +160,20 @@ You'll find the sheet in your Google Drive after the first run.
 - `search_queries` — fed to JSearch; use role titles you'd search on LinkedIn
 - `title_filter_terms` — post-filter applied to all sources; any job whose title contains one of these strings passes through
 - `scorer_settings.provider` — which LLM to score with (see [Swapping the LLM](#swapping-the-llm))
+
+**Edit `config/search_config.json` → `apify_settings`** to configure the Apify scrapers for your role:
+
+```json
+"apify_settings": {
+  "vc_portfolio_keyword": "product manager",
+  "wellfound_roles": ["product-manager"],
+  "wellfound_locations": ["remote", "new-york"]
+}
+```
+
+- `vc_portfolio_keyword` — keyword passed to the VC portfolio scraper (leave empty `""` to get all roles)
+- `wellfound_roles` — Wellfound role slugs (find them in Wellfound's URL: `wellfound.com/role/r/product-manager`)
+- `wellfound_locations` — location slugs to filter by
 
 **Edit `config/target_companies.json`** — Greenhouse slugs for companies you want to monitor directly (bypasses JSearch). Find a company's slug by visiting `boards.greenhouse.io/{slug}` — e.g. `boards.greenhouse.io/stripe` → slug is `stripe`.
 
