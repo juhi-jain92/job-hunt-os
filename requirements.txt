@@ -3,5 +3,7 @@ python-dotenv
 gspread
 google-auth
 google-auth-oauthlib
+anthropic
+openai
 zhipuai
 apify-client

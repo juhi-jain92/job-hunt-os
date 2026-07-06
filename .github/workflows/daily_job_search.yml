@@ -29,6 +29,9 @@ jobs:
           echo "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}" >> .env
           echo "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}" >> .env
           echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> .env
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+          echo "ZAI_API_KEY=${{ secrets.ZAI_API_KEY }}" >> .env
+          echo "GOOGLE_SHEET_OWNER_EMAIL=${{ secrets.GOOGLE_SHEET_OWNER_EMAIL }}" >> .env
 
       - name: Run job discovery
         run: python3 job_search.py

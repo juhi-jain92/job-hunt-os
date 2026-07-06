@@ -34,7 +34,8 @@
     "platform engineer"
   ],
   "scorer_settings": {
+    "provider": "zhipuai",
     "model": "glm-5.2",
-    "note": "ZhipuAI GLM model. Set ZAI_API_KEY in .env. Get keys at bigmodel.cn."
+    "note": "Set provider to 'anthropic' or 'zhipuai'. Model must match the provider (e.g. claude-sonnet-4-6 for Anthropic, glm-5.2 for ZhipuAI)."
   }
 }

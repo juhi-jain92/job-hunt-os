@@ -1,7 +1,11 @@
 """
 match_scorer.py — Reads every unscored job from the "Job Hunt OS" sheet,
-calls a ZhipuAI GLM model once per job to score it against the configured
-search tracks, then batch-writes all scores back to the sheet.
+calls an LLM once per job to score it against the configured search tracks,
+then batch-writes all scores back to the sheet.
+
+Supported providers (set in config/search_config.json → scorer_settings.provider):
+  "anthropic" — Claude models via ANTHROPIC_API_KEY
+  "zhipuai"   — GLM models via ZAI_API_KEY
 """
 
 import json
@@ -12,6 +16,8 @@ from collections import Counter
 from datetime import datetime
 from typing import Optional
 
+import anthropic
+from openai import OpenAI
 from zhipuai import ZhipuAI
 from dotenv import load_dotenv
 
@@ -20,10 +26,6 @@ import sheets
 # ── 1. Config & secrets ──────────────────────────────────────────────────────
 
 load_dotenv()
-
-ZAI_API_KEY = os.getenv("ZAI_API_KEY")
-if not ZAI_API_KEY or ZAI_API_KEY in {"your_key_here", "your_zai_api_key_here"}:
-    sys.exit("ERROR: Set ZAI_API_KEY in your .env file. Get it at bigmodel.cn → API Keys.")
 
 BASE = os.path.dirname(__file__)
 
@@ -44,7 +46,29 @@ def _load(path: str, label: str) -> str:
 
 context_store    = json.loads(open(os.path.join(BASE, "config", "context_store.json")).read())
 _search_config   = json.loads(open(os.path.join(BASE, "config", "search_config.json")).read())
-MODEL            = _search_config.get("scorer_settings", {}).get("model", "claude-sonnet-4-6")
+_scorer_settings = _search_config.get("scorer_settings", {})
+PROVIDER         = _scorer_settings.get("provider", "anthropic")
+_defaults = {"anthropic": "claude-sonnet-4-6", "openai": "gpt-4o-mini", "zhipuai": "glm-4-flash"}
+_default_model   = _defaults.get(PROVIDER, "claude-sonnet-4-6")
+MODEL            = _scorer_settings.get("model", _default_model)
+
+if PROVIDER == "anthropic":
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    if not ANTHROPIC_API_KEY or ANTHROPIC_API_KEY in {"your_key_here", "your_anthropic_api_key_here"}:
+        sys.exit("ERROR: Set ANTHROPIC_API_KEY in your .env file. Get it at console.anthropic.com → API Keys.")
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+elif PROVIDER == "openai":
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    if not OPENAI_API_KEY or OPENAI_API_KEY in {"your_key_here", "your_openai_api_key_here"}:
+        sys.exit("ERROR: Set OPENAI_API_KEY in your .env file. Get it at platform.openai.com/api-keys.")
+    client = OpenAI(api_key=OPENAI_API_KEY)
+elif PROVIDER == "zhipuai":
+    ZAI_API_KEY = os.getenv("ZAI_API_KEY")
+    if not ZAI_API_KEY or ZAI_API_KEY in {"your_key_here", "your_zai_api_key_here"}:
+        sys.exit("ERROR: Set ZAI_API_KEY in your .env file. Get it at bigmodel.cn → API Keys.")
+    client = ZhipuAI(api_key=ZAI_API_KEY)
+else:
+    sys.exit(f"ERROR: Unknown provider '{PROVIDER}' in search_config.json. Use 'anthropic', 'openai', or 'zhipuai'.")
 rubric_text      = _load("config/job_fit_eval_framework.md", "eval framework")
 
 # Guardrails: load from file if it exists, otherwise use inline version
@@ -109,9 +133,7 @@ Dream tier: {', '.join(_company['dream_tier'])}
 {TRACK_PROFILE}
 """.strip()
 
-# ── 3. GLM scoring ───────────────────────────────────────────────────────────
-
-client = ZhipuAI(api_key=ZAI_API_KEY)
+# ── 3. LLM scoring ───────────────────────────────────────────────────────────
 
 JSON_SCHEMA = f"""
 Return ONLY a valid JSON object with exactly these keys. No markdown fences, no prose:
@@ -171,11 +193,30 @@ CANDIDATE PROFILE:
 {JSON_SCHEMA}"""
 
 
-def _call_glm(prompt: str) -> Optional[dict]:
-    """
-    Makes one ZhipuAI GLM API call and parses the JSON response.
-    Returns the parsed dict, or raises ValueError/JSONDecodeError on failure.
-    """
+def _raw_anthropic(prompt: str) -> str:
+    msg = client.messages.create(
+        model=MODEL,
+        max_tokens=500,
+        system=GUARDRAILS,
+        messages=[{"role": "user", "content": prompt}],
+        timeout=30,
+    )
+    return msg.content[0].text.strip()
+
+
+def _raw_openai(prompt: str) -> str:
+    resp = client.chat.completions.create(
+        model=MODEL,
+        max_tokens=500,
+        messages=[
+            {"role": "system", "content": GUARDRAILS},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    return (resp.choices[0].message.content or "").strip()
+
+
+def _raw_zhipuai(prompt: str) -> str:
     resp = client.chat.completions.create(
         model=MODEL,
         temperature=0.01,
@@ -189,10 +230,19 @@ def _call_glm(prompt: str) -> Optional[dict]:
     print(f"  [debug] finish_reason={resp.choices[0].finish_reason}", file=sys.stderr)
     content = resp.choices[0].message.content
     print(f"  [debug] raw content={repr(content[:200]) if content else None}", file=sys.stderr)
-    raw = (content or "").strip()
+    return (content or "").strip()
+
+
+def _call_llm(prompt: str) -> Optional[dict]:
+    """
+    Makes one LLM API call (provider-agnostic) and parses the JSON response.
+    Returns the parsed dict, or raises ValueError/JSONDecodeError on failure.
+    """
+    _callers = {"anthropic": _raw_anthropic, "openai": _raw_openai, "zhipuai": _raw_zhipuai}
+    raw = _callers[PROVIDER](prompt)
 
     if not raw:
-        raise ValueError("GLM returned an empty response")
+        raise ValueError(f"{PROVIDER} returned an empty response")
 
     # Strip markdown code fences if the model included them despite instructions
     if raw.startswith("```"):
@@ -206,8 +256,8 @@ def _call_glm(prompt: str) -> Optional[dict]:
 
 def score_job(job: dict) -> Optional[dict]:
     """
-    Scores one job with up to 2 GLM attempts.
-    Attempt 1 fails → wait 2 s → attempt 2.
+    Scores one job with up to 2 LLM attempts.
+    Attempt 1 fails → wait → attempt 2.
     Both fail → log and return None so the run continues.
     """
     job_id = job.get("job_id", "")
@@ -215,13 +265,27 @@ def score_job(job: dict) -> Optional[dict]:
 
     for attempt in (1, 2):
         try:
-            return _call_glm(prompt)
+            return _call_llm(prompt)
         except (ValueError, json.JSONDecodeError) as e:
             if attempt == 1:
                 print(f"  [retry] Attempt 1 failed for {job_id} ({e}) — retrying in 2 s ...", file=sys.stderr)
                 time.sleep(2)
             else:
                 print(f"  [error] Attempt 2 also failed for {job_id} ({e}) — skipping.", file=sys.stderr)
+        except anthropic.APITimeoutError:
+            if attempt == 1:
+                print(f"  [retry] API timeout on attempt 1 for {job_id} — retrying in 10 s ...", file=sys.stderr)
+                time.sleep(10)
+            else:
+                print(f"  [error] API timeout on attempt 2 for {job_id} — skipping.", file=sys.stderr)
+        except anthropic.APIError as e:
+            if hasattr(e, "status_code") and e.status_code == 400 and "credit" in str(e).lower():
+                raise RuntimeError("CREDIT_EXHAUSTED")
+            if attempt == 1:
+                print(f"  [retry] API error on attempt 1 for {job_id} ({e}) — retrying in 2 s ...", file=sys.stderr)
+                time.sleep(2)
+            else:
+                print(f"  [error] API error on attempt 2 for {job_id} ({e}) — skipping.", file=sys.stderr)
         except Exception as e:
             if attempt == 1:
                 print(f"  [retry] API error on attempt 1 for {job_id} ({e}) — retrying in 2 s ...", file=sys.stderr)
@@ -279,8 +343,57 @@ else:
     print(f"  {len(all_rows)} total rows | {len(to_score)} unscored and eligible\n")
 
 if ESTIMATE_MODE:
-    print("--estimate is not supported with the ZhipuAI provider (no token-counting API).")
-    print(f"  Unscored jobs: {len(to_score)}")
+    if PROVIDER != "anthropic":
+        print(f"--estimate is not supported with provider '{PROVIDER}' (no token-counting API).")
+        print(f"  Unscored jobs: {len(to_score)}")
+        sys.exit(0)
+
+    INPUT_PRICE_PER_M  = 3.00
+    OUTPUT_PRICE_PER_M = 15.00
+    AVG_OUTPUT_TOKENS  = 250
+
+    sample_size = min(10, len(to_score))
+    step = max(1, len(to_score) // sample_size)
+    sample = [to_score[i] for i in range(0, len(to_score), step)][:sample_size]
+
+    total_sample_tokens = 0
+    for row in sample:
+        prompt = build_prompt(row)
+        resp = client.messages.count_tokens(
+            model=MODEL,
+            system=GUARDRAILS,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        total_sample_tokens += resp.input_tokens
+
+    avg_input_tokens = total_sample_tokens // len(sample)
+    n = len(to_score)
+    total_input  = avg_input_tokens * n
+    total_output = AVG_OUTPUT_TOKENS * n
+    cost_input   = total_input  / 1_000_000 * INPUT_PRICE_PER_M
+    cost_output  = total_output / 1_000_000 * OUTPUT_PRICE_PER_M
+    total_cost   = cost_input + cost_output
+    est_minutes  = (n * 10) // 60
+
+    print(f"""
+{'='*50}
+COST ESTIMATE — match_scorer.py
+{'='*50}
+Unscored jobs:        {n}
+Sample size:          {len(sample)} rows
+Avg input tokens:     {avg_input_tokens:,} per call
+Avg output tokens:    {AVG_OUTPUT_TOKENS} per call (estimated)
+
+Total input tokens:   {total_input:,}
+Total output tokens:  {total_output:,}
+
+Input cost  ($3/M):   ${cost_input:.2f}
+Output cost ($15/M):  ${cost_output:.2f}
+TOTAL COST:           ${total_cost:.2f}
+
+Est. runtime:         ~{est_minutes} min at ~10s/job
+{'='*50}
+""")
     sys.exit(0)
 
 if not to_score:
@@ -307,6 +420,14 @@ for i, row in enumerate(to_score, 1):
     try:
         result = score_job(row)
     except RuntimeError as e:
+        if str(e) == "CREDIT_EXHAUSTED":
+            print(f"\n[FATAL] Anthropic credit balance exhausted.", file=sys.stderr)
+            print(f"  Top up at console.anthropic.com → Plans & Billing, then re-run.", file=sys.stderr)
+            if updates and not PREVIEW_MODE:
+                print(f"  Writing {len(updates)} scores collected so far ...")
+                sheets.batch_write_scores(sheet, updates)
+                print(f"  Saved. Re-run after topping up — scored rows will be skipped automatically.")
+            sys.exit(1)
         raise
 
     if result is None:
@@ -322,7 +443,7 @@ for i, row in enumerate(to_score, 1):
         time.sleep(CALL_DELAY_SECONDS)
         continue
 
-    # ── Map Claude output → sheet columns ──
+    # ── Map LLM output → sheet columns ──
     total  = result.get("total_score", 0)
     track  = result.get("track", "LOW MATCH")
     tier   = result.get("tier", "Skip")
