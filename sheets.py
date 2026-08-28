@@ -78,7 +78,7 @@ REFERRALS_COLUMNS = [
 # send → mark it. Join keys sit at the far right so they can be hidden.
 NETWORKING_COLUMNS = [
     "outreach_id", "due_date", "priority", "status", "contact_name",
-    "company_display", "role_title", "channel", "message_shape", "owner",
+    "company_display", "job_open", "role_title", "channel", "message_shape", "owner",
     "link", "subject", "draft_body", "personalization_hook", "personalized",
     "digest", "sent_date", "response", "response_date", "follow_up_due",
     "follow_up_flag", "follow_up_sent", "job_id", "contact_id", "company_norm",

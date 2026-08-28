@@ -292,8 +292,9 @@ def main():
                 cost = len(lines)
 
         candidate.update({
-            "size": size, "cost": cost, "lines": lines,
-            "info": info, "open_roles": gh.get("open_roles", 0),
+            "size": size, "cost": cost, "lines": lines, "info": info,
+            "open_roles": gh.get("open_roles", 0),
+            "job_open": "Y" if gh.get("open_roles", 0) > 0 else "N",
         })
         picks.append(candidate)
         used += cost
@@ -343,6 +344,7 @@ def main():
                     "status": "PROSPECT",
                     "contact_name": name,
                     "company_display": label,
+                    "job_open": pick.get("job_open", "N"),
                     "role_title": "",
                     "channel": "email" if name and hunter_person else "linkedin_connect_note",
                     "message_shape": "cold_email" if hunter_person else "stranger_no_ask",
@@ -361,6 +363,7 @@ def main():
                 "status": "PROSPECT",
                 "contact_name": "",
                 "company_display": label,
+                "job_open": pick.get("job_open", "N"),
                 "channel": "linkedin_connect_note",
                 "message_shape": "stranger_no_ask",
                 "owner": "juhi",
