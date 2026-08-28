@@ -37,7 +37,7 @@ import sys
 from datetime import datetime, timedelta
 
 import sheets
-from contact_extract import extract, hunter_domain_search
+from contact_extract import CONFIDENCE_TRUSTED, extract, hunter_domain_search, hunter_verify
 from linkedin_urls import people_search_url, research_links, school_search_url
 from normalize import is_blocked, norm_company
 
@@ -130,7 +130,8 @@ def ranked_candidates(pick: dict) -> list:
             if e.get("name"):
                 out.append({"name": e["name"], "title": e.get("position", "") or "",
                             "link": f"mailto:{e['email']}", "via": "Hunter.io",
-                            "email": e["email"]})
+                            "email": e["email"],
+                            "confidence": e.get("confidence", 0)})
     out.sort(key=lambda c: title_rank(c["title"]))
     return out
 
@@ -370,10 +371,27 @@ def main():
             pool = [c for c in candidates if c["name"] not in used_names]
             for n in range(per_line):
                 person = pool[n] if n < len(pool) else None
+                if person and person.get("email"):
+                    # Never queue an address that would bounce. High-confidence
+                    # indexed emails are already trustworthy; everything else
+                    # spends one verification credit, and invalid drops the
+                    # address (keeping the person via a search link).
+                    conf = person.get("confidence", 0)
+                    if conf >= CONFIDENCE_TRUSTED:
+                        person["_verify_note"] = f"Hunter-indexed, confidence {conf}%"
+                    else:
+                        v = hunter_verify(person["email"])
+                        if v["status"] == "invalid":
+                            person["email"] = ""
+                            person["link"] = people_search_url(company, title_filter)
+                            person["_verify_note"] = "email failed verification — use the search link"
+                        else:
+                            person["_verify_note"] = f"verifier: {v['status']} ({v['score']}%)"
                 if person:
                     used_names.add(person["name"])
                     name, link = person["name"], person["link"]
                     note = (f"{person['via']}: {person['title'][:60]}. "
+                            f"{person.get('_verify_note', '')}. "
                             "Verify the role is current before sending.")
                     is_email = bool(person["email"])
                 else:

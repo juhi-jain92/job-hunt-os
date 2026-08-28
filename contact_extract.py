@@ -225,11 +225,38 @@ def hunter_domain_search(domain: str) -> dict:
                 "email": e.get("value", ""),
                 "name": f"{e.get('first_name','')} {e.get('last_name','')}".strip(),
                 "position": e.get("position", "") or "",
+                "confidence": e.get("confidence", 0) or 0,
             }
             for e in data.get("emails", [])
             if e.get("value")
         ],
     }
+
+
+HUNTER_VERIFY = "https://api.hunter.io/v2/email-verifier"
+CONFIDENCE_TRUSTED = 80  # indexed emails at/above this skip the verifier
+
+
+def hunter_verify(email: str) -> dict:
+    """
+    One verification credit (100/month on the free plan), so callers only
+    verify guessed or low-confidence addresses — never the whole queue.
+    Returns {"status": valid|accept_all|unknown|invalid|unavailable, "score": int}.
+    """
+    if not HUNTER_API_KEY or not email:
+        return {"status": "unavailable", "score": 0}
+    try:
+        resp = requests.get(
+            HUNTER_VERIFY,
+            params={"email": email, "api_key": HUNTER_API_KEY},
+            timeout=TIMEOUT,
+        )
+        resp.raise_for_status()
+        d = resp.json().get("data", {})
+        return {"status": d.get("status", "unknown"), "score": d.get("score", 0)}
+    except requests.RequestException:
+        # Out of credits or transient failure — treat as unknown, never block.
+        return {"status": "unavailable", "score": 0}
 
 
 def apply_pattern(pattern: str, first: str, last: str, domain: str) -> str:
