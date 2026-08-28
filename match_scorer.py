@@ -396,8 +396,9 @@ else:
 
 if ESTIMATE_MODE:
     # Sonnet 4.6 pricing (per 1M tokens)
-    INPUT_PRICE_PER_M  = 3.00
-    OUTPUT_PRICE_PER_M = 15.00
+    # Read from config so the estimate tracks whatever model is actually set.
+    INPUT_PRICE_PER_M  = _scorer_cfg.get("price_input_per_m",  2.00)
+    OUTPUT_PRICE_PER_M = _scorer_cfg.get("price_output_per_m", 10.00)
     AVG_OUTPUT_TOKENS  = 250  # typical JSON response
 
     # Sample 10 evenly spaced rows to estimate average prompt size
@@ -437,8 +438,8 @@ Avg output tokens:    {AVG_OUTPUT_TOKENS} per call (estimated)
 Total input tokens:   {total_input:,}
 Total output tokens:  {total_output:,}
 
-Input cost  ($3/M):   ${cost_input:.2f}
-Output cost ($15/M):  ${cost_output:.2f}
+Input cost  (${INPUT_PRICE_PER_M:g}/M):   ${cost_input:.2f}
+Output cost (${OUTPUT_PRICE_PER_M:g}/M):  ${cost_output:.2f}
 TOTAL COST:           ${total_cost:.2f}
 
 Est. runtime:         ~{est_minutes} min at ~10s/job

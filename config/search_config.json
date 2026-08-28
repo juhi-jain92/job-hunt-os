@@ -1,8 +1,6 @@
 {
-  "_comment": "Operational config for job_search.py and match_scorer.py. Commit this file — it contains no personal data. Edit search_queries and title_filter_terms for your target role.",
-
+  "_comment": "Operational config for job_search.py and match_scorer.py. Commit this file \u2014 it contains no personal data. Edit search_queries and title_filter_terms for your target role.",
   "date_posted_filter": "week",
-
   "search_queries": [
     "Senior Product Manager",
     "Staff Product Manager",
@@ -23,38 +21,48 @@
     "Retail Media Product Manager",
     "CTV Product Manager"
   ],
-
   "title_filter_terms": [
-    "product manager", " pm ", "pm,", "pm -", "- pm",
-    "product lead", "product director", "group product",
-    "staff product", "principal product",
-    "associate director product", "director of product",
-    "director, product", "vp product", "head of product",
-    "product owner", "strategy lead", "ai strategy",
+    "product manager",
+    " pm ",
+    "pm,",
+    "pm -",
+    "- pm",
+    "product lead",
+    "product director",
+    "group product",
+    "staff product",
+    "principal product",
+    "associate director product",
+    "director of product",
+    "director, product",
+    "vp product",
+    "head of product",
+    "product owner",
+    "strategy lead",
+    "ai strategy",
     "product strategy"
   ],
-
   "scorer_settings": {
     "model": "claude-sonnet-5",
     "effort": "low",
-    "note": "effort: low|medium|high|max. Low cuts thinking depth and token spend — right for routine classification against a rubric."
+    "note": "Sonnet 5 is $2/$10 per MTok. Haiku 4.5 is $1/$5 but does NOT accept output_config effort \u2014 remove that param before switching.",
+    "price_input_per_m": 2.0,
+    "price_output_per_m": 10.0
   },
-
   "outreach_settings": {
     "model": "claude-sonnet-5",
     "effort": "high",
     "digest_effort": "medium",
     "max_tokens": 1200,
-    "note": "Drafting is generative writing in a specific voice, not rubric classification, so effort is high here and low in scorer_settings. Volume is ~5 drafts/day against 400 scored jobs, so the cost difference is negligible. Same model and same parameter style as the scorer — no drift.",
-    "price_input_per_m": 3.00,
-    "price_output_per_m": 15.00
+    "note": "Drafting is generative writing in a specific voice, not rubric classification, so effort is high here and low in scorer_settings. Volume is ~5 drafts/day against 400 scored jobs, so the cost difference is negligible. Same model and same parameter style as the scorer \u2014 no drift.",
+    "price_input_per_m": 2.0,
+    "price_output_per_m": 10.0
   },
-
   "velocity": {
     "linkedin_connect_per_week": 15,
     "prospects_queued_per_day": 20,
     "sends_per_day_target": 5,
     "follow_up_after_days": 7,
-    "note": "The connect cap governs linkedin_connect_note rows moving to SENT. DMs to existing connections and cold emails consume zero connect requests, so they are uncapped. Queueing is uncapped — it touches no platform."
+    "note": "The connect cap governs linkedin_connect_note rows moving to SENT. DMs to existing connections and cold emails consume zero connect requests, so they are uncapped. Queueing is uncapped \u2014 it touches no platform."
   }
 }
