@@ -102,28 +102,70 @@ ADTECH TRACK must-have signals: {', '.join(_tracks['adtech']['must_have_signals'
 ADTECH TRACK dealbreakers: {'; '.join(_tracks['adtech']['dealbreakers'])}
 """.strip()
 
+# Distilled from resume/Juhi_Jain_Resume.pdf (Aug 2026). Key insights only —
+# the full resume is deliberately not sent, per the token cuts in
+# docs/technical-learnings.md. Refresh this block when the PDF changes.
 RESUME_SECTION = """
+--- CURRENT POSITIONING ---
+AI-native Product Leader, ~10 yrs, 0-to-1 products across programmatic advertising,
+CTV and applied AI, grounded in hands-on predictive modeling. Owned strategy and
+roadmap for a $400M business; shipped three AI-enabled workflows using deterministic
+decisioning, evals, guardrails and human review — $2M annualized, $10M+ projected.
+
 --- RESUME VERSION B (AI / Builder track) — key skills & experience ---
-- Associate Director, PM at LG Ads (~10 yrs PM total); seniority band Senior PM → AD
-- AI workflows built: real-time creative scanning & approval ($18M projected), AI creative resizing (1 wk→1 min), campaign troubleshooting chatbot (50% ticket cut), Segment Portal AI agent (10% ops bandwidth freed)
-- 0-to-1 platforms: River OS TV OS (100K TVs; voice recommender adopted by LGE on 100M+ TVs), programmatic home screen monetization ($16M ARR, first OEM in industry), Alt ID/identity infra ($3M rev, 3X bid rates, 60% CTV coverage), Supply Diagnostics Platform ($1.3M)
-- ML systems: Inventory Quality ML (invalid traffic detection, $4M impact, 20% margin lift), supply-demand matching ($1M)
-- Privacy/compliance: GDPR, CCPA, DNT/LMT — identified $6M EU GDPR gap, drove 60%+ opt-in
-- Can claim: agentic workflow design, LLM orchestration, prompt engineering, guardrails design, eval framework design
-- Cannot claim: production Python/TypeScript code, LLM fine-tuning, RAG pipeline, vector DBs
-- Led/mentored 4 PMs + 6 solution engineers; ISB PGP Management; DeepLearning.AI certified
+- Currently AI Product Manager at Vectorial AI (part-time, Jul 2026–present): founding
+  product member on a production voice-AI interview agent; defined North Star metric,
+  quality rubrics and data strategy; v1 roadmap adopted by the CPO in week one
+- Evals & observability: golden-dataset evals, LLM-as-judge, regression gates,
+  turn-level OpenTelemetry tracing; cut cost 75% ($4 → $1 per interview)
+- Trust & safety: deterministic controls (PII stripping, kill switch, jailbreak and
+  fraud guardrails) gating every live session, vs LLM-judged quality calls
+- System architecture: re-architected a multi-agent voice system, replacing
+  agent-to-agent orchestration with a deterministic stateful gateway owning
+  transcript, live-time injection and memory with context compaction
+- Prior: Associate Director, Product Management at LG Ads (Apr 2025–Apr 2026);
+  managed 4 PMs; enabled 40+ sales and 50+ ops staff
+- AI portfolio at LG Ads: creative approval (deterministic policy rules, confidence
+  guardrails, 3-state risk routing; TAT 5 days → 1 day, ~80% automated, HITL on the
+  riskiest 20%), multimodal creative generation, campaign-diagnostics agent (LLM kept
+  to intent routing and explanation, deterministic services owned retrieval and
+  thresholds; 4 hours → real-time, 50% ticket deflection, $1.5M annual revenue)
+- Independent builds (May 2026–present): Job Hunt OS (LLM system scoring 2,000+ roles
+  across 40+ sources, model routing benchmarked on quality/latency/cost, human-review
+  gate), ThinkOS (rulebook-governed agent, propose-never-modify git gate), ContractIQ
+  (full-stack legal-AI on Azure AI, Snowflake, Supabase, Vercel, Netlify),
+  Interview Coach (self-updating eval rubric)
+- Technical fluency: SQL, REST APIs, Azure AI, Snowflake, Supabase, OpenTelemetry,
+  Git, Vercel, Netlify
+- Can claim: agentic workflow design, multi-agent systems, LLM orchestration,
+  prompt engineering, guardrails design, eval framework design, LLM-as-judge,
+  observability, deterministic decisioning, AI trust & safety
+- Cannot claim: production Python/TypeScript code, LLM fine-tuning, RAG pipeline,
+  vector DBs
+- ISB PGP Management (2018–19); B.Tech DTU (2011–15)
 
 --- RESUME VERSION A (Adtech track) — key skills & experience ---
-- Same person; emphasis on programmatic advertising, CTV, identity, and adtech platform expertise
-- Owned $400M programmatic business: demand, supply, identity, monetization across CTV video and display
-- Identity: UID2, RampID, Alt ID + 3 others, Google PAL, APS — 60% O&O CTV coverage, 3X bid rates
-- Programmatic monetization: 0-to-1 home screen inventory; 10+ DSPs/SSPs/resellers onboarded; $16M ARR
-- Ad server: inventory filtering, waterfall management, productionized maintenance suite
-- Attribution: 0-to-1 offline attribution (IP-to-Household), Share of Voice reporting
-- Privacy gatekeeper: GDPR, CCPA, DNT/LMT, DPAs — negotiated with Google, LG HQ, legal counsel
-- Inventory quality: ML-based IVT detection ($4M), supply-demand matching ($1M), multi-tag calling ($1.2M)
-- B2B partnerships: DSPs, SSPs, publishers, OEM (LG HQ); OOH/hotel/in-vehicle expansion POCs
-- CTV/OTT: River OS, voice recommender (100M+ TVs), app partnerships (Prime, Hotstar, Zee5, SonyLiv)
+- Same person; emphasis on programmatic advertising, CTV, identity and adtech platform
+- Owned $400M programmatic business: demand, supply, identity, monetization across
+  CTV video and display; primary product voice to 10+ clients, SSPs, DSPs and CXO partners
+- Identity (contrarian bet): pioneered CTV identity with absent 1p data, won eng
+  resources after 6+ months of advocacy; UID2, RampID, Google PAL, APS across US/CA/EU;
+  tripled bid rates, 60% O&O coverage, $3M rev/year
+- Programmatic monetization: 0-to-1 home-screen inventory, first TV OEM to enable it
+  across all ad formats; 10+ DSPs/SSPs/resellers; $16M annual revenue in 1.5 years
+- Inventory quality: took fraud detection in-house after the vendor matched under half
+  our supply; set the block threshold where false-block cost met fraud loss;
+  $4M rev and savings, +20% margin
+- Data quality (0-to-1): supply diagnostics and tag automation across 2,500+ tags;
+  35% fewer tickets, $1.3M
+- Production ML: per-partner bid-propensity model with weekly retraining cadence to
+  counter drift without over-fitting noise; $1.2M incremental
+- Privacy: GDPR, CCPA, DNT/LMT — caught a gap risking $6M, moved a resistant sales org
+  with an opportunity-cost model, negotiated a Google grace period, 60%+ EU opt-in
+- CTV/OTT: River OS shipped to market in under a year OTA-first to 100K active TVs;
+  voice household-ID integrated by LGE across 100M+ TVs; CES 2022 demo; app partners
+  (Prime, Hotstar, Zee5, SonyLiv); offline attribution productized, $100K deal
+- Awards: Most Revenue Generating PM 2023
 """.strip()
 
 # ── 3. Claude scoring ─────────────────────────────────────────────────────────
