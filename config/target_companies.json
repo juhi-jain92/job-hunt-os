@@ -76,19 +76,7 @@
     {
       "company": "Chalice",
       "note": "custom bidding AI \u2014 decisioning match"
-    },
-    {
-      "company": "LawnStarter",
-      "note": "marketplace \u2014 supply-demand fits"
-    },
-    {
-      "company": "Roku",
-      "note": "CTV platform + ads \u2014 home-turf domain"
-    },
-    {
-      "company": "Tereina",
-      "note": "stealth fintech startup (per Juhi)"
     }
   ],
-  "_manual_targets_note": "Pre-qualified networking slots. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal."
+  "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement \u2014 marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms."
 }

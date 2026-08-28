@@ -94,9 +94,11 @@ platform monetization, home-screen inventory, identity, measurement.
 else in the pipeline can use. Seattle-friendly presence.
 **Who:** Ads product or Platform monetization PM leadership.
 
-Also added to the manual list per Juhi: **LawnStarter** (marketplace —
-supply-demand, conversion economics transfer cleanly) and **Tereina** (stealth
-fintech). Moloco is blocked everywhere by config.
+Selection criteria are wider than adtech: any company whose core problem is
+supply-demand matching, auctions/pricing, conversion economics, attribution, or
+ops enablement qualifies — marketplaces (the LawnStarter shape), CTV platforms
+(the Roku shape), fintech with marketplace dynamics (stealth included). Moloco is
+blocked everywhere by config.
 
 ### 5 · Kevel — the ops-enablement match
 API-native **Retail Media Cloud**; 2026 momentum: Adobe AEP real-time integration,
