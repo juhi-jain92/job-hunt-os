@@ -316,6 +316,9 @@ def main():
 
         if PREVIEW:
             print(json.dumps(result, indent=2))
+            d = derive(result, str(row.get("status", "")).strip().lower())
+            print(f"  → would write: score={d['score']}  ai={d['ai_score']}  "
+                  f"adtech={d['adtech_score']}  status={d['status']}")
             continue
 
         d = derive(result, str(row.get("status", "")).strip().lower())
