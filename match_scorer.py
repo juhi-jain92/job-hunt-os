@@ -1,7 +1,22 @@
 """
-match_scorer.py — Reads every unscored job from the "Job Hunt OS" sheet,
-calls Claude once per job to score it against the AI and adtech tracks using
-the eval framework rubric, then batch-writes all scores back to the sheet.
+match_scorer.py — Scores every unscored job in the ledger against Juhi's
+resume key details, writing score (0-10), ai_score, adtech_score, status,
+and notes back to the sheet.
+
+Division of labor: the model judges four dimensions and the qualitative
+dealbreakers; Python does every derivation (total, sub-score mapping,
+status). An A/B showed the model mislabels its own arithmetic ~1/3 of the
+time at low effort, so no derived value is ever asked of it.
+
+Model: claude-sonnet-5 at effort low — A/B-tested as the optimum. Medium
+effort doubled cost and changed zero 7+ decisions; disabling thinking was
+slower AND more expensive (the model pads visible output instead).
+
+Usage:
+    python3 match_scorer.py --estimate     cost estimate, no scoring
+    python3 match_scorer.py --preview 5    score 5, print JSON, write nothing
+    python3 match_scorer.py --limit 20     score and write only 20
+    caffeinate -dims python3 match_scorer.py
 """
 
 import json
@@ -10,252 +25,145 @@ import sys
 import time
 from collections import Counter
 from datetime import datetime
-from typing import Optional
 
 import anthropic
 from dotenv import load_dotenv
 
 import sheets
 
-# ── 1. Config & secrets ──────────────────────────────────────────────────────
+# ── Config ────────────────────────────────────────────────────────────────────
 
 load_dotenv()
-
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-if not ANTHROPIC_API_KEY or ANTHROPIC_API_KEY == "your_key_here":
-    sys.exit("ERROR: Set ANTHROPIC_API_KEY in your .env file. Get it at console.anthropic.com → API Keys.")
+API_KEY = os.getenv("ANTHROPIC_API_KEY")
+if not API_KEY or API_KEY == "your_key_here":
+    sys.exit("ERROR: Set ANTHROPIC_API_KEY in your .env file.")
 
 BASE = os.path.dirname(__file__)
+_cfg = json.load(open(os.path.join(BASE, "config", "search_config.json")))["scorer_settings"]
 
-# Statuses the user owns — scorer never touches these rows
+MODEL  = _cfg.get("model", "claude-sonnet-5")
+EFFORT = _cfg.get("effort", "low")
+PRICE_IN  = _cfg.get("price_input_per_m", 2.00)
+PRICE_OUT = _cfg.get("price_output_per_m", 10.00)
+
 USER_OWNED_STATUSES = {"applied", "interviewing", "rejected", "skipped"}
+FLUSH_EVERY = 25
+CALL_DELAY  = 0.1
 
-# Delay between Claude calls to stay well inside rate limits
-CALL_DELAY_SECONDS = 0.1
+client = anthropic.Anthropic(api_key=API_KEY)
 
-# ── 2. Load context files ────────────────────────────────────────────────────
+# ── Candidate context ─────────────────────────────────────────────────────────
+# Preferences come from the gitignored context store; the resume key details
+# are distilled from resume/Juhi_Jain_Resume.pdf (Aug 2026). Refresh the
+# KEY_DETAILS block when the PDF changes.
 
-def _load(path: str, label: str) -> str:
-    full = os.path.join(BASE, path)
-    if os.path.exists(full):
-        return open(full).read().strip()
-    print(f"  [warning] {label} not found at {path} — continuing without it.", file=sys.stderr)
-    return ""
+_store  = json.load(open(os.path.join(BASE, "config", "context_store.json")))
+_cand   = _store.get("candidate", {})
+_shared = _store.get("shared", {})
 
-context_store  = json.loads(open(os.path.join(BASE, "config", "context_store.json")).read())
-_search_config = json.loads(open(os.path.join(BASE, "config", "search_config.json")).read())
-_scorer_cfg    = _search_config.get("scorer_settings", {})
-MODEL          = _scorer_cfg.get("model",  "claude-sonnet-5")
-EFFORT         = _scorer_cfg.get("effort", "low")
-# The rubric and the resume files used to be loaded here and passed into the
-# prompt. Both were cut to save ~2,500 tokens per call: the rubric logic now
-# lives in JSON_SCHEMA, and the resume is distilled into RESUME_SECTION below.
-
-# Guardrails: load from file if it exists, otherwise use inline version
-_guardrails_file = _load("guardrails/guardrails.md", "guardrails file")
-GUARDRAILS = _guardrails_file if _guardrails_file else """
-You are a precise, honest job-fit scorer. Apply these rules without exception:
-
-ACCURACY
-- Never add skills, titles, or experience not explicitly in the candidate's resume
-- Never exaggerate metrics — exact numbers only, traceable to the experience library
-- Never claim a seniority level higher than Associate Director
-- Score honestly; do not inflate scores to flatter
-
-HARD LIMITS (cannot claim)
-- Production Python/TypeScript code, LLM fine-tuning, RAG pipeline hands-on, vector database implementation
-- The chatbot at LG Ads was a Type-1 deterministic read-only diagnostic agent, NOT a probabilistic RAG chatbot
-- Job Hunt OS and Creative Approval Workflow are personal portfolio projects built with Claude Code, not shipped commercial products — cannot claim production deployment at scale, user base, or revenue
-- Can claim: agentic workflow design, LLM orchestration, prompt engineering, guardrails design, eval framework design
-
-SCORING BEHAVIOR
-- If the JD requires something the candidate clearly lacks, flag it explicitly in the reason field
-- If match score confidence is low due to missing or thin JD content, say so explicitly in the reason field
-- Score leniently on domain when AI readiness is high: a strong AI-core role in an adjacent domain (e.g. healthtech, fintech) is NOT an automatic skip — let ai_readiness_score carry the total if the AI fit is genuine
+PREFERENCES = f"""
+CANDIDATE: {_cand.get('name', '')} — {_cand.get('yoe', '')} yrs PM
+Location: {_cand.get('location', '')} · OK: {', '.join(_shared.get('locations', []))} · {_shared.get('remote_preference', '')}
+Salary floor: ${_shared.get('salary', {}).get('tc_floor', 200000):,} total comp
+Seniority band: {', '.join(_shared.get('seniority_band', []))}
 """.strip()
 
-# Build a compact candidate profile string from context_store
-_cand    = context_store["candidate"]
-_shared  = context_store["shared"]
-_tracks  = context_store["tracks"]
-_company = context_store["company_profile"]
-
-CANDIDATE_PROFILE = f"""
-CANDIDATE: {_cand['name']}
-YOE: {_cand['yoe']} years
-Current status: {_cand['status']}
-Location: {_cand['location']}
-Locations OK: {', '.join(_shared['locations'])}
-Remote preference: {_shared['remote_preference']}
-Salary floor: ${_shared['salary']['tc_floor']:,} TC
-Seniority band: {', '.join(_shared['seniority_band'])}
-Company preference: {_company['stage']}
-Avoid: {_company['avoid']}
-Dream tier: {', '.join(_company['dream_tier'])}
-
-AI TRACK positioning: {_tracks['ai']['positioning']}
-AI TRACK must-have signals: {', '.join(_tracks['ai']['must_have_signals'])}
-AI TRACK dealbreakers: {'; '.join(_tracks['ai']['dealbreakers'])}
-
-ADTECH TRACK positioning: {_tracks['adtech']['positioning']}
-ADTECH TRACK must-have signals: {', '.join(_tracks['adtech']['must_have_signals'])}
-ADTECH TRACK dealbreakers: {'; '.join(_tracks['adtech']['dealbreakers'])}
-""".strip()
-
-# Distilled from resume/Juhi_Jain_Resume.pdf (Aug 2026). Key insights only —
-# the full resume is deliberately not sent, per the token cuts in
-# docs/technical-learnings.md. Refresh this block when the PDF changes.
-RESUME_SECTION = """
+KEY_DETAILS = """
 --- CURRENT POSITIONING ---
 AI-native Product Leader, ~10 yrs, 0-to-1 products across programmatic advertising,
 CTV and applied AI, grounded in hands-on predictive modeling. Owned strategy and
 roadmap for a $400M business; shipped three AI-enabled workflows using deterministic
 decisioning, evals, guardrails and human review — $2M annualized, $10M+ projected.
 
---- RESUME VERSION B (AI / Builder track) — key skills & experience ---
-- Currently AI Product Manager at Vectorial AI (part-time, Jul 2026–present): founding
-  product member on a production voice-AI interview agent; defined North Star metric,
-  quality rubrics and data strategy; v1 roadmap adopted by the CPO in week one
+--- AI / BUILDER TRACK ---
+- Now: AI Product Manager, Vectorial AI (Jul 2026–present) — founding product member
+  on a production voice-AI interview agent; North Star metric, quality rubrics, data
+  strategy; v1 roadmap adopted by the CPO in week one
 - Evals & observability: golden-dataset evals, LLM-as-judge, regression gates,
   turn-level OpenTelemetry tracing; cut cost 75% ($4 → $1 per interview)
 - Trust & safety: deterministic controls (PII stripping, kill switch, jailbreak and
   fraud guardrails) gating every live session, vs LLM-judged quality calls
-- System architecture: re-architected a multi-agent voice system, replacing
-  agent-to-agent orchestration with a deterministic stateful gateway owning
-  transcript, live-time injection and memory with context compaction
-- Prior: Associate Director, Product Management at LG Ads (Apr 2025–Apr 2026);
-  managed 4 PMs; enabled 40+ sales and 50+ ops staff
-- AI portfolio at LG Ads: creative approval (deterministic policy rules, confidence
-  guardrails, 3-state risk routing; TAT 5 days → 1 day, ~80% automated, HITL on the
-  riskiest 20%), multimodal creative generation, campaign-diagnostics agent (LLM kept
-  to intent routing and explanation, deterministic services owned retrieval and
-  thresholds; 4 hours → real-time, 50% ticket deflection, $1.5M annual revenue)
-- Independent builds (May 2026–present): Job Hunt OS (LLM system scoring 2,000+ roles
-  across 40+ sources, model routing benchmarked on quality/latency/cost, human-review
-  gate), ThinkOS (rulebook-governed agent, propose-never-modify git gate), ContractIQ
-  (full-stack legal-AI on Azure AI, Snowflake, Supabase, Vercel, Netlify),
-  Interview Coach (self-updating eval rubric)
-- Technical fluency: SQL, REST APIs, Azure AI, Snowflake, Supabase, OpenTelemetry,
-  Git, Vercel, Netlify
-- Can claim: agentic workflow design, multi-agent systems, LLM orchestration,
-  prompt engineering, guardrails design, eval framework design, LLM-as-judge,
-  observability, deterministic decisioning, AI trust & safety
-- Cannot claim: production Python/TypeScript code, LLM fine-tuning, RAG pipeline,
-  vector DBs
-- ISB PGP Management (2018–19); B.Tech DTU (2011–15)
+- Re-architected a multi-agent voice system into a deterministic stateful gateway
+  owning transcript, live-time injection, and memory with context compaction
+- Prior: Associate Director, PM at LG Ads (Apr 2025–Apr 2026); managed 4 PMs
+- AI portfolio at LG Ads: creative approval (policy rules, confidence guardrails,
+  3-state risk routing; TAT 5 days → 1 day, ~80% automated, HITL on riskiest 20%),
+  multimodal creative generation, campaign-diagnostics agent (LLM for intent routing
+  and explanation only; 4 hrs → real-time, 50% ticket deflection, $1.5M/yr)
+- Independent builds: Job Hunt OS (LLM scoring 2,000+ roles, human-review gate),
+  ThinkOS (propose-never-modify git gate), ContractIQ (full-stack legal-AI on Azure
+  AI/Snowflake/Supabase), Interview Coach (self-updating eval rubric)
+- Fluency: SQL, REST APIs, Azure AI, Snowflake, Supabase, OpenTelemetry, Git
 
---- RESUME VERSION A (Adtech track) — key skills & experience ---
-- Same person; emphasis on programmatic advertising, CTV, identity and adtech platform
+--- ADTECH TRACK ---
 - Owned $400M programmatic business: demand, supply, identity, monetization across
-  CTV video and display; primary product voice to 10+ clients, SSPs, DSPs and CXO partners
-- Identity (contrarian bet): pioneered CTV identity with absent 1p data, won eng
-  resources after 6+ months of advocacy; UID2, RampID, Google PAL, APS across US/CA/EU;
-  tripled bid rates, 60% O&O coverage, $3M rev/year
-- Programmatic monetization: 0-to-1 home-screen inventory, first TV OEM to enable it
-  across all ad formats; 10+ DSPs/SSPs/resellers; $16M annual revenue in 1.5 years
-- Inventory quality: took fraud detection in-house after the vendor matched under half
-  our supply; set the block threshold where false-block cost met fraud loss;
-  $4M rev and savings, +20% margin
-- Data quality (0-to-1): supply diagnostics and tag automation across 2,500+ tags;
-  35% fewer tickets, $1.3M
-- Production ML: per-partner bid-propensity model with weekly retraining cadence to
-  counter drift without over-fitting noise; $1.2M incremental
-- Privacy: GDPR, CCPA, DNT/LMT — caught a gap risking $6M, moved a resistant sales org
-  with an opportunity-cost model, negotiated a Google grace period, 60%+ EU opt-in
-- CTV/OTT: River OS shipped to market in under a year OTA-first to 100K active TVs;
-  voice household-ID integrated by LGE across 100M+ TVs; CES 2022 demo; app partners
-  (Prime, Hotstar, Zee5, SonyLiv); offline attribution productized, $100K deal
-- Awards: Most Revenue Generating PM 2023
+  CTV video and display; product voice to 10+ clients, SSPs, DSPs, CXO partners
+- Identity (contrarian bet): UID2, RampID, Google PAL, APS across US/CA/EU;
+  tripled bid rates, 60% O&O CTV coverage, $3M rev/year
+- Monetization: 0-to-1 home-screen inventory, first TV OEM to enable it across all
+  ad formats; 10+ DSPs/SSPs/resellers; $16M annual revenue in 1.5 years
+- Inventory quality: fraud detection in-house, threshold set where false-block cost
+  met fraud loss; $4M, +20% margin. Supply diagnostics across 2,500+ tags; $1.3M
+- Production ML: per-partner bid-propensity model, weekly retraining; $1.2M
+- Privacy: GDPR/CCPA/DNT-LMT; caught a $6M GDPR gap, drove EU to 60%+ opt-in
+- CTV/OTT: River OS to 100K TVs in under a year; voice household-ID integrated by
+  LGE across 100M+ TVs; CES 2022 demo; Most Revenue Generating PM 2023
+
+--- HONEST LIMITS (never claim) ---
+- Production Python/TypeScript coding, LLM fine-tuning, hands-on RAG pipelines,
+  vector database implementation
+- Seniority above Associate Director
+- Independent builds are portfolio projects, not shipped commercial products
 """.strip()
 
-# ── 3. Claude scoring ─────────────────────────────────────────────────────────
+RUBRIC = """
+You are a precise, honest job-fit scorer. Never inflate scores. If the JD requires
+something the candidate lacks, or the description is too thin to judge, say so in
+"reason".
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-
-JSON_SCHEMA = """
-Return ONLY a valid JSON object with exactly these keys. No markdown fences, no prose:
+Return ONLY a valid JSON object, no markdown fences, no prose:
 
 {
-  "ai_score":           <int 0-3, AI Readiness dimension score>,
-  "adtech_score":       <int 0-3, Adtech Domain fit score>,
-  "domain_score":       <int 0-3, Domain Match rubric dimension>,
-  "ai_readiness_score": <int 0-3, AI Readiness rubric dimension>,
-  "skills_score":       <int 0-2, Skills Match rubric dimension>,
-  "level_score":        <int 0-2, Level & Scope rubric dimension>,
-  "total_score":        <int, domain_score + ai_readiness_score + skills_score + level_score>,
-  "track":              <"AI" | "ADTECH" | "DUAL" | "LOW MATCH">,
-  "tier":               <"Tier 1" | "Tier 2" | "Tier 3" | "Skip">,
-  "hard_skip":          <true | false>,
-  "hard_skip_reason":   <"reason string if hard_skip is true, else empty string">,
-  "recommended_resume": <"A" | "B">,
-  "reason":             <"2-3 sentence explanation of the score and fit">
+  "domain":          <0-3  how well the job's domain matches adtech/CTV/programmatic experience>,
+  "ai":              <0-3  how central applied-AI product work is to this job and how well she fits it>,
+  "skills":          <0-2  overlap between JD requirements and her actual skills>,
+  "level":           <0-2  seniority and scope fit for a Senior PM-to-Director band>,
+  "adtech_relevant": <true if the domain score comes from adtech/CTV/programmatic specifically>,
+  "dealbreaker":     <"" or the reason: salary top clearly under the floor, production
+                      coding as a hard requirement, sales/account role not product,
+                      agency not product company>,
+  "reason":          <2-3 sentences: why these scores, and any gap worth knowing>
 }
 
-Scoring rules:
-- total_score = domain_score + ai_readiness_score + skills_score + level_score  (max 10)
-- track: "DUAL" if domain_score >= 2 AND ai_readiness_score >= 2; "AI" if ai_readiness_score == 3; "ADTECH" if domain_score == 3 AND ai_readiness_score < 2; else "LOW MATCH"
-- tier: total_score >= 9 → "Tier 1"; 7-8 → "Tier 2"; 5-6 → "Tier 3"; < 5 → "Skip"
-- hard_skip: true if ANY of these apply:
-    * total_score <= 6
-    * Salary top of range clearly under $200K (if visible in the description)
-    * Job requires production Python or TypeScript as a hard requirement
-    * Role is sales, revenue, or account management — not product
-    * Company is an agency, not a product company
-- recommended_resume: "B" if ai_readiness_score == 3; "A" if domain is adtech-specific; else "B"
-- ai_score = same as ai_readiness_score
-- adtech_score = domain_score when domain is adtech-specific, else 0
+Judge leniently on domain when the AI fit is genuine: a strong AI-core role in an
+adjacent domain (healthtech, fintech) is not a low match — let the ai dimension carry it.
 """.strip()
 
-
-# Everything identical across calls lives in the system prompt, in stable
-# order, with cache_control on the last block. Prompt caching is a prefix
-# match, so the job posting — the only thing that varies — goes in the user
-# message, after the cached prefix. ~4K of ~5K input tokens are then billed
-# at the 0.1x cache-read rate from the second call on. The old layout put
-# the job FIRST and the static content after it, which made every byte
-# cache-miss on every call.
-SYSTEM_BLOCKS = [
-    {
-        "type": "text",
-        "text": f"""{GUARDRAILS}
-
----
-CANDIDATE PROFILE:
-{CANDIDATE_PROFILE}
-{RESUME_SECTION}
-
----
-{JSON_SCHEMA}""",
-        "cache_control": {"type": "ephemeral"},
-    }
-]
+# Everything static sits in the system prompt with cache_control, in stable
+# order; only the job posting varies per call. ~4K of ~5K input tokens are
+# billed at the 0.1x cache-read rate from the second call on.
+SYSTEM_BLOCKS = [{
+    "type": "text",
+    "text": f"{RUBRIC}\n\n---\n{PREFERENCES}\n\n{KEY_DETAILS}",
+    "cache_control": {"type": "ephemeral"},
+}]
 
 
 def build_prompt(job: dict) -> str:
-    """Only what varies per call: the job posting itself."""
-    title   = job.get("title", "")
-    company = job.get("company", "")
-    loc     = job.get("location", "")
-    desc    = (job.get("description", "") or "")[:5000]
-
-    return f"""Score this job posting for the candidate in your instructions.
-
-JOB POSTING:
-Title:    {title}
-Company:  {company}
-Location: {loc}
-Description:
-{desc}"""
+    return (
+        f"Score this job posting for the candidate in your instructions.\n\n"
+        f"JOB POSTING:\n"
+        f"Title:    {job.get('title', '')}\n"
+        f"Company:  {job.get('company', '')}\n"
+        f"Location: {job.get('location', '')}\n"
+        f"Description:\n{(job.get('description') or '')[:5000]}"
+    )
 
 
-def _call_claude(prompt: str) -> Optional[dict]:
-    """
-    Makes one Claude API call and parses the JSON response.
-    Returns the parsed dict, or raises ValueError/APIError on failure.
-    """
-    # Thinking blocks are billed against max_tokens, so the old 500-token
-    # ceiling could leave the JSON truncated mid-object. Scored output is
-    # ~250 tokens; the rest is headroom for reasoning.
+# ── Scoring ───────────────────────────────────────────────────────────────────
+
+def _call_claude(prompt: str) -> dict:
+    # max_tokens covers thinking + JSON; a low ceiling truncates mid-object.
     msg = client.messages.create(
         model=MODEL,
         max_tokens=2000,
@@ -264,379 +172,200 @@ def _call_claude(prompt: str) -> Optional[dict]:
         output_config={"effort": EFFORT},
         timeout=60,
     )
-
-    # The response may open with a thinking block, so index 0 is not
-    # necessarily the answer. Take the first actual text block.
-    raw = ""
-    for block in msg.content:
-        if getattr(block, "type", None) == "text" or hasattr(block, "text"):
-            if getattr(block, "type", None) == "thinking":
-                continue
-            raw = block.text.strip()
-            if raw:
-                break
-
+    # The response may open with a thinking block — take the first text block.
+    raw = next(
+        (b.text.strip() for b in msg.content
+         if getattr(b, "type", None) == "text" and b.text.strip()),
+        "",
+    )
     if not raw:
-        kinds = ", ".join(getattr(b, "type", "?") for b in msg.content) or "none"
-        raise ValueError(f"No text block in response (blocks: {kinds})")
-
-    # Strip markdown code fences if Claude included them despite instructions
+        kinds = ", ".join(getattr(b, "type", "?") for b in msg.content)
+        raise ValueError(f"no text block in response ({kinds})")
     if raw.startswith("```"):
         raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-
-    return json.loads(raw)  # raises json.JSONDecodeError if unparseable
+        raw = raw[4:] if raw.startswith("json") else raw
+    return json.loads(raw.strip())
 
 
-def score_job(job: dict) -> Optional[dict]:
-    """
-    Scores one job with up to 2 Claude attempts.
-    Attempt 1 fails → wait 2 s → attempt 2.
-    Both fail → log and return None so the run continues.
-    """
-    job_id = job.get("job_id", "")
+def score_job(job: dict):
+    """Two attempts, then skip. CREDIT_EXHAUSTED aborts the run upstream."""
     prompt = build_prompt(job)
-
     for attempt in (1, 2):
         try:
             return _call_claude(prompt)
-        except (ValueError, json.JSONDecodeError) as e:
-            if attempt == 1:
-                print(f"  [retry] Attempt 1 failed for {job_id} ({e}) — retrying in 2 s ...", file=sys.stderr)
-                time.sleep(2)
-            else:
-                print(f"  [error] Attempt 2 also failed for {job_id} ({e}) — skipping.", file=sys.stderr)
-        except anthropic.APITimeoutError:
-            if attempt == 1:
-                print(f"  [retry] API timeout on attempt 1 for {job_id} — retrying in 10 s ...", file=sys.stderr)
-                time.sleep(10)
-            else:
-                print(f"  [error] API timeout on attempt 2 for {job_id} — skipping.", file=sys.stderr)
         except anthropic.APIError as e:
-            if hasattr(e, "status_code") and e.status_code == 400 and "credit" in str(e).lower():
+            if getattr(e, "status_code", None) == 400 and "credit" in str(e).lower():
                 raise RuntimeError("CREDIT_EXHAUSTED")
-            if attempt == 1:
-                print(f"  [retry] API error on attempt 1 for {job_id} ({e}) — retrying in 2 s ...", file=sys.stderr)
-                time.sleep(2)
-            else:
-                print(f"  [error] API error on attempt 2 for {job_id} ({e}) — skipping.", file=sys.stderr)
-
+            err, wait = e, 10 if isinstance(e, anthropic.APITimeoutError) else 2
+        except (ValueError, json.JSONDecodeError) as e:
+            err, wait = e, 2
+        if attempt == 1:
+            print(f"  [retry] {err} — retrying in {wait}s", file=sys.stderr)
+            time.sleep(wait)
+    print(f"  [error] both attempts failed for {job.get('job_id', '')} — skipping", file=sys.stderr)
     return None
 
 
-# ── 4. Main ───────────────────────────────────────────────────────────────────
+def derive(result: dict, current_status: str) -> dict:
+    """
+    Everything computable from the model's judgment, computed here.
+    score = sum of dimensions; the referral lane gates on score >= 7.
+    """
+    domain = int(result.get("domain", 0))
+    ai     = int(result.get("ai", 0))
+    skills = int(result.get("skills", 0))
+    level  = int(result.get("level", 0))
+    score  = domain + ai + skills + level
 
-# --estimate  → count unscored rows, estimate token usage and cost, then exit
-ESTIMATE_MODE = "--estimate" in sys.argv
+    dealbreaker = str(result.get("dealbreaker", "") or "").strip()
+    skip = bool(dealbreaker) or score <= 6
 
-# --preview N  → score N rows, print raw JSON, do NOT write to sheet
-PREVIEW_MODE  = "--preview" in sys.argv
-PREVIEW_LIMIT = 5
-if PREVIEW_MODE:
+    status = "low match" if skip else "ready to apply" if score >= 7 else "spray"
+    reason = result.get("reason", "")
+    if dealbreaker:
+        reason = f"DEALBREAKER: {dealbreaker}. {reason}"
+
+    return {
+        "score":        score,
+        "ai_score":     ai,
+        "adtech_score": domain if result.get("adtech_relevant") else 0,
+        "notes":        reason,
+        "status":       status,
+        "write_status": current_status in ("", "new"),
+        "skip":         skip,
+    }
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def _flag(name, default):
+    """N after the flag, the default if N is missing, None if the flag is absent."""
+    if name not in sys.argv:
+        return None
     try:
-        PREVIEW_LIMIT = int(sys.argv[sys.argv.index("--preview") + 1])
+        return int(sys.argv[sys.argv.index(name) + 1])
     except (IndexError, ValueError):
-        PREVIEW_LIMIT = 5
+        return default
 
-# --limit N  → score and write only N rows, then stop
-LIMIT_MODE  = "--limit" in sys.argv
-LIMIT_COUNT = None
-if LIMIT_MODE:
-    try:
-        LIMIT_COUNT = int(sys.argv[sys.argv.index("--limit") + 1])
-    except (IndexError, ValueError):
-        LIMIT_COUNT = 10
+
+ESTIMATE = "--estimate" in sys.argv
+PREVIEW  = _flag("--preview", 5)
+LIMIT    = _flag("--limit", 10)
+
 
 def main():
-    """
-    Everything below touches the live sheet and spends real money, so it
-    must not run on import. Without this guard, `import match_scorer` from
-    a test or an experiment starts a full scoring pass against the sheet.
-    """
     print("\nOpening sheet ...")
     sheet = sheets.open_or_create_sheet()
-
-    print("Reading rows ...")
     all_rows = sheets.get_all_rows_with_numbers(sheet)
 
-    # Filter to rows that need scoring
     to_score = [
         r for r in all_rows
-        if not str(r.get("ai_score", "")).strip()
-        and not str(r.get("adtech_score", "")).strip()
-        and r.get("status", "").lower() not in USER_OWNED_STATUSES
+        if not str(r.get("score", "")).strip()
+        and (r.get("status", "") or "").lower() not in USER_OWNED_STATUSES
     ]
 
+    # Rows with nothing to read are marked, not sent — a model call cannot
+    # score a job it cannot see.
+    def scorable(r):
+        return (str(r.get("job_id", "")).strip()
+                and str(r.get("title", "")).strip()
+                and len(str(r.get("description", "")).strip()) >= 100)
 
-    def _is_scorable(row: dict) -> bool:
-        """
-        A row with no id, no title, or no description has nothing to score.
-        Sending it anyway costs a live API call to be told it scores zero.
-        """
-        return bool(
-            str(row.get("job_id", "")).strip()
-            and str(row.get("title", "")).strip()
-            and len(str(row.get("description", "")).strip()) >= 100
-        )
+    unscorable = [r for r in to_score if not scorable(r)]
+    to_score   = [r for r in to_score if scorable(r)]
 
-
-    unscorable = [r for r in to_score if not _is_scorable(r)]
-    to_score   = [r for r in to_score if _is_scorable(r)]
-
-    if unscorable and (PREVIEW_MODE or ESTIMATE_MODE):
-        print(f"  Ignoring {len(unscorable)} unscorable row(s).")
+    if unscorable and not (ESTIMATE or PREVIEW):
+        sheets.batch_write_scores(sheet, [{
+            "row_num": r["_row_num"], "score": 0, "ai_score": 0, "adtech_score": 0,
+            "notes": ("No description from the source — cannot be scored."
+                      if str(r.get("title", "")).strip()
+                      else "Empty row."),
+            "status": "low match", "write_status": True,
+        } for r in unscorable])
+        print(f"  Marked {len(unscorable)} unscorable row(s) without model calls.")
     elif unscorable:
-        # Two different situations get two different labels. A row with no
-        # title is dead data; a row with a real title but no description is a
-        # real job the source failed to describe (the VC portfolio actor
-        # returns none) — worth a manual glance, not a silent burial.
-        marks = []
-        n_empty = n_nodesc = 0
-        for r in unscorable:
-            if str(r.get("title", "")).strip():
-                n_nodesc += 1
-                note = ("No description from the source — cannot be scored. "
-                        "If the title looks interesting, open the URL.")
-            else:
-                n_empty += 1
-                note = "No job data on this row — not sent to the model."
-            marks.append({
-                "row_num": r["_row_num"],
-                "score": 0,
-                "ai_score": 0,
-                "adtech_score": 0,
-                "notes": note,
-                "status": "low match",
-                "write_status": True,
-            })
-        print(f"  Marking without model calls: {n_empty} empty row(s), "
-              f"{n_nodesc} job(s) with no description.")
-        sheets.batch_write_scores(sheet, marks)
+        print(f"  Ignoring {len(unscorable)} unscorable row(s).")
 
-    if PREVIEW_MODE:
-        to_score = to_score[:PREVIEW_LIMIT]
-        print(f"  PREVIEW MODE — scoring {len(to_score)} row(s), nothing will be written to the sheet.\n")
-    elif LIMIT_MODE:
-        to_score = to_score[:LIMIT_COUNT]
-        print(f"  LIMIT MODE — scoring first {len(to_score)} rows only, will write to sheet.\n")
-    else:
-        print(f"  {len(all_rows)} total rows | {len(to_score)} unscored and eligible\n")
+    print(f"  {len(all_rows)} rows | {len(to_score)} unscored and eligible\n")
 
-    if ESTIMATE_MODE:
-        # Sonnet 4.6 pricing (per 1M tokens)
-        # Read from config so the estimate tracks whatever model is actually set.
-        INPUT_PRICE_PER_M  = _scorer_cfg.get("price_input_per_m",  2.00)
-        OUTPUT_PRICE_PER_M = _scorer_cfg.get("price_output_per_m", 10.00)
-        AVG_OUTPUT_TOKENS  = 250  # typical JSON response
+    if ESTIMATE:
+        estimate(to_score)
+        return
+    if PREVIEW:
+        to_score = to_score[:PREVIEW]
+        print(f"  PREVIEW — scoring {len(to_score)}, writing nothing.\n")
+    elif LIMIT:
+        to_score = to_score[:LIMIT]
 
-        # Sample 10 evenly spaced rows to estimate average prompt size
-        sample_size = min(10, len(to_score))
-        step = max(1, len(to_score) // sample_size)
-        sample = [to_score[i] for i in range(0, len(to_score), step)][:sample_size]
-
-        # Count the cached prefix and the variable part separately, because
-        # they are billed at different rates: the system blocks cost 1.25x
-        # once (cache write) then 0.1x on every later call.
-        prefix_tokens = client.messages.count_tokens(
-            model=MODEL,
-            system=SYSTEM_BLOCKS,
-            messages=[{"role": "user", "content": "x"}],
-        ).input_tokens
-
-        total_sample_tokens = 0
-        for row in sample:
-            resp = client.messages.count_tokens(
-                model=MODEL,
-                messages=[{"role": "user", "content": build_prompt(row)}],
-            )
-            total_sample_tokens += resp.input_tokens
-
-        avg_variable_tokens = total_sample_tokens // len(sample)
-        avg_input_tokens = prefix_tokens + avg_variable_tokens
-        n = len(to_score)
-
-        total_input  = avg_variable_tokens * n            # full price
-        cached_input = prefix_tokens * (n - 1)            # 0.1x after first call
-        total_output = AVG_OUTPUT_TOKENS * n
-        cost_input   = (
-            total_input  / 1_000_000 * INPUT_PRICE_PER_M
-            + prefix_tokens / 1_000_000 * INPUT_PRICE_PER_M * 1.25   # cache write
-            + cached_input / 1_000_000 * INPUT_PRICE_PER_M * 0.10   # cache reads
-        )
-        cost_output  = total_output / 1_000_000 * OUTPUT_PRICE_PER_M
-        total_cost   = cost_input + cost_output
-        est_minutes  = (n * 10) // 60  # ~10s per job
-
-        print(f"""
-    {'='*50}
-    COST ESTIMATE — match_scorer.py ({MODEL}, effort={EFFORT})
-    {'='*50}
-    Unscored jobs:        {n}
-    Sample size:          {len(sample)} rows
-    Avg input tokens:     {avg_input_tokens:,} per call
-    Avg output tokens:    {AVG_OUTPUT_TOKENS} per call (estimated)
-
-    Total input tokens:   {total_input:,}
-    Total output tokens:  {total_output:,}
-
-    Input cost  (${INPUT_PRICE_PER_M:g}/M):   ${cost_input:.2f}
-    Output cost (${OUTPUT_PRICE_PER_M:g}/M):  ${cost_output:.2f}
-    TOTAL COST:           ${total_cost:.2f}
-
-    Est. runtime:         ~{est_minutes} min at ~10s/job
-    {'='*50}
-    """)
-        sys.exit(0)
-
-    if not to_score:
-        print("Nothing to score. Exiting.")
-        sys.exit(0)
-
-    # ── 5. Score each job ─────────────────────────────────────────────────────────
-
-    updates   = []
-    failed    = []
-    counters  = Counter()
-    FLUSH_EVERY = 25  # write to sheet every N scored jobs to preserve progress
+    updates, counters, t0 = [], Counter(), time.time()
 
     for i, row in enumerate(to_score, 1):
-        job_id  = row.get("job_id", "")
-        title   = row.get("title", "")
-        company = row.get("company", "")
-        print(f"{'='*55}")
-        print(f"[{i}/{len(to_score)}] {datetime.now().strftime('%H:%M:%S')}  {title} @ {company}")
-        print(f"  job_id: {job_id}")
-        print(f"  description chars: {len(row.get('description', '') or '')}")
-
+        print(f"[{i}/{len(to_score)}] {datetime.now():%H:%M:%S}  "
+              f"{row.get('title', '')[:60]} @ {row.get('company', '')}")
         try:
             result = score_job(row)
-        except RuntimeError as e:
-            if str(e) == "CREDIT_EXHAUSTED":
-                print(f"\n[FATAL] Anthropic credit balance exhausted.", file=sys.stderr)
-                print(f"  Top up at console.anthropic.com → Plans & Billing, then re-run.", file=sys.stderr)
-                if updates and not PREVIEW_MODE:
-                    print(f"  Writing {len(updates)} scores collected so far ...")
-                    sheets.batch_write_scores(sheet, updates)
-                    print(f"  Saved. Re-run after topping up — scored rows will be skipped automatically.")
-                sys.exit(1)
-            raise
+        except RuntimeError:
+            print("\n[FATAL] Anthropic credits exhausted — saving progress.", file=sys.stderr)
+            if updates and not PREVIEW:
+                sheets.batch_write_scores(sheet, updates)
+            sys.exit(1)
 
         if result is None:
-            failed.append(job_id)
             counters["errors"] += 1
-            time.sleep(CALL_DELAY_SECONDS)
             continue
 
-        if PREVIEW_MODE:
-            # Print raw JSON and stop — do not collect for writing
-            print(f"\n  RAW JSON RESPONSE:")
-            print(json.dumps(result, indent=4))
-            time.sleep(CALL_DELAY_SECONDS)
+        if PREVIEW:
+            print(json.dumps(result, indent=2))
             continue
 
-        # ── Map Claude output → sheet columns ──
-        # The model judges the four dimension scores and the qualitative
-        # hard-skip reasons; everything derivable from those is computed
-        # here. An A/B run showed the model mislabels the tier for its own
-        # total ~1/3 of the time at low effort — and referral_match.py
-        # reads the tier to decide what counts as 7+, so a mislabel
-        # silently drops a qualifying role from the referral lane.
-        domain = result.get("domain_score", 0)
-        ai_r   = result.get("ai_readiness_score", 0)
-        skills = result.get("skills_score", 0)
-        level  = result.get("level_score", 0)
-        total  = domain + ai_r + skills + level
+        d = derive(result, str(row.get("status", "")).strip().lower())
+        updates.append({"row_num": row["_row_num"], **{
+            k: d[k] for k in ("score", "ai_score", "adtech_score", "notes", "status", "write_status")
+        }})
+        counters[f"score {d['score']}"] += 1
+        if d["skip"]:
+            counters["skipped"] += 1
+        print(f"    score={d['score']}  status={d['status']}")
 
-        if domain >= 2 and ai_r >= 2:
-            track = "DUAL"
-        elif ai_r == 3:
-            track = "AI"
-        elif domain == 3:
-            track = "ADTECH"
-        else:
-            track = "LOW MATCH"
-
-        # The model's hard_skip carries the judgment calls (salary under
-        # floor, sales role, agency); the arithmetic part is enforced here.
-        skip   = bool(result.get("hard_skip", True)) or total <= 6
-        reason = result.get("reason", "")
-        resume = result.get("recommended_resume", "B")
-
-        if skip:
-            status = "low match"
-        elif total >= 7:
-            status = "ready to apply"
-        else:
-            status = "spray"
-
-        current_status = str(row.get("status", "")).strip().lower()
-        write_status   = current_status in ("", "new")
-
-        updates.append({
-            "row_num":      row["_row_num"],
-            "score":        total,
-            "ai_score":     ai_r,                             # ai_readiness dimension
-            "adtech_score": result.get("adtech_score", 0),    # adtech domain dimension
-            "notes":        f"{track} · resume {resume} · {reason}",
-            "status":       status,
-            "write_status": write_status,
-        })
-
-        counters[f"score {total}"] += 1
-        counters[track] += 1
-        if skip:
-            counters["hard_skip"] += 1
-
-        print(f"    score={total}  track={track}  resume={resume}  hard_skip={skip}")
-        time.sleep(CALL_DELAY_SECONDS)
-
-        if not PREVIEW_MODE and len(updates) >= FLUSH_EVERY:
-            print(f"\n  [flush] Writing {len(updates)} scores to sheet ...")
+        if len(updates) >= FLUSH_EVERY:
             sheets.batch_write_scores(sheet, updates)
             updates.clear()
-            print(f"  [flush] Done.\n")
-
-    # ── 6. Write all scores in one batch (skipped in preview mode) ───────────────
-
-    if PREVIEW_MODE:
-        print(f"\n{'='*55}")
-        print("PREVIEW COMPLETE — sheet unchanged. Run without --preview to write scores.")
-        sys.exit(0)
+            print(f"  [flush] saved · {i}/{len(to_score)} done · "
+                  f"{(time.time() - t0) / i:.1f}s/job avg")
+        time.sleep(CALL_DELAY)
 
     if updates:
-        print(f"\nWriting {len(updates)} score rows to sheet ...")
         sheets.batch_write_scores(sheet, updates)
-        print("  Done.")
 
-    if failed:
-        print(f"\n  [warning] {len(failed)} job(s) failed and were skipped:")
-        for jid in failed:
-            print(f"    {jid}")
+    print(f"\nDone in {(time.time() - t0) / 60:.0f} min.")
+    for label, n in counters.most_common():
+        print(f"  {label:<12} {n}")
 
-    # ── 7. Summary ────────────────────────────────────────────────────────────────
 
-    scored = len(updates)
-    print(f"""
-    {'='*45}
-    SCORING COMPLETE
-    {'='*45}
-    Total scored:      {scored}
-    Tier 1:            {counters.get('Tier 1', 0)}
-    Tier 2:            {counters.get('Tier 2', 0)}
-    Tier 3:            {counters.get('Tier 3', 0)}
-    Skip / low match:  {counters.get('Skip', 0)}
-    Hard skips:        {counters.get('hard_skip', 0)}
-    ---
-    AI track:          {counters.get('AI', 0)}
-    ADTECH track:      {counters.get('ADTECH', 0)}
-    DUAL:              {counters.get('DUAL', 0)}
-    LOW MATCH:         {counters.get('LOW MATCH', 0)}
-    Errors:            {counters.get('errors', 0)}
-    {'='*45}
-    """)
+def estimate(to_score: list):
+    if not to_score:
+        print("  Nothing to score.")
+        return
+    sample = to_score[:: max(1, len(to_score) // 10)][:10]
+    prefix = client.messages.count_tokens(
+        model=MODEL, system=SYSTEM_BLOCKS,
+        messages=[{"role": "user", "content": "x"}],
+    ).input_tokens
+    var = sum(
+        client.messages.count_tokens(
+            model=MODEL, messages=[{"role": "user", "content": build_prompt(r)}]
+        ).input_tokens
+        for r in sample
+    ) // len(sample)
 
+    n = len(to_score)
+    # Cached prefix: 1.25x once, 0.1x on every later call.
+    cost = (
+        (var * n + prefix * 1.25 + prefix * (n - 1) * 0.10) / 1e6 * PRICE_IN
+        + 250 * n / 1e6 * PRICE_OUT
+    )
+    print(f"  {n} jobs · ~{prefix} cached + ~{var} variable tokens/call")
+    print(f"  Estimated cost: ${cost:.2f} · runtime ~{n * 6 // 60} min")
 
 
 if __name__ == "__main__":
