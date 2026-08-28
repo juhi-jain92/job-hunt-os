@@ -323,7 +323,10 @@ def main():
         }})
         counters[f"score {d['score']}"] += 1
         if d["skip"]:
-            counters["skipped"] += 1
+            # score <= 6 or a dealbreaker — scored and recorded, just not
+            # worth applying to. Named "low match", because a run summary
+            # saying "skipped 847" reads as work not done.
+            counters["low match"] += 1
         print(f"    score={d['score']}  status={d['status']}")
 
         if len(updates) >= FLUSH_EVERY:
