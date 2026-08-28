@@ -1,0 +1,104 @@
+{
+  "_comment": "Normalized company name → canonical name. Applied after norm_company() strips legal suffixes. Keys and values must both be lowercase. Grow this from `contacts_ingest.py --report-unmatched` — it is the highest-precision lever in the join. Safe to commit, contains no personal data.",
+
+  "alphabet": "google",
+  "google llc": "google",
+  "youtube": "google",
+  "waymo": "google",
+  "deepmind": "google",
+  "google deepmind": "google",
+
+  "meta platforms": "meta",
+  "facebook": "meta",
+  "instagram": "meta",
+
+  "amazon web services": "amazon",
+  "aws": "amazon",
+  "amazon ads": "amazon",
+  "amazon advertising": "amazon",
+  "twitch": "amazon",
+
+  "microsoft azure": "microsoft",
+  "azure": "microsoft",
+  "linkedin": "microsoft",
+  "github": "microsoft",
+
+  "apple inc": "apple",
+  "x": "twitter",
+  "x corp": "twitter",
+
+  "alphonso": "lg ads",
+  "lg ads solutions": "lg ads",
+  "lg ad solutions": "lg ads",
+  "lg electronics": "lg ads",
+  "alphonso tv": "lg ads",
+
+  "exl service": "exl",
+  "exlservice": "exl",
+  "exl analytics": "exl",
+
+  "the trade desk": "trade desk",
+  "thetradedesk": "trade desk",
+
+  "walmart labs": "walmart",
+  "walmart connect": "walmart",
+  "sams club": "walmart",
+
+  "disney streaming": "disney",
+  "hulu": "disney",
+  "espn": "disney",
+
+  "nbcuniversal": "nbcu",
+  "comcast advertising": "nbcu",
+  "peacock": "nbcu",
+
+  "warner bros discovery": "wbd",
+  "hbo max": "wbd",
+  "max": "wbd",
+
+  "paramount global": "paramount",
+  "cbs": "paramount",
+  "pluto tv": "paramount",
+
+  "roku inc": "roku",
+  "samsung ads": "samsung",
+  "samsung electronics": "samsung",
+
+  "publicis groupe": "publicis",
+  "publicis sapient": "publicis",
+  "omnicom media group": "omnicom",
+  "groupm": "wpp",
+  "mindshare": "wpp",
+  "wavemaker": "wpp",
+
+  "salesforce com": "salesforce",
+  "slack technologies": "salesforce",
+  "tableau": "salesforce",
+
+  "anthropic pbc": "anthropic",
+
+  "stripe payments": "stripe",
+  "block": "square",
+  "block inc": "square",
+
+  "jpmorgan chase": "jpmorgan",
+  "jp morgan": "jpmorgan",
+  "chase": "jpmorgan",
+
+  "goldman sachs group": "goldman sachs",
+  "american express": "amex",
+
+  "uber technologies": "uber",
+  "lyft inc": "lyft",
+  "doordash inc": "doordash",
+  "airbnb inc": "airbnb",
+
+  "netflix inc": "netflix",
+  "spotify technology": "spotify",
+  "pinterest inc": "pinterest",
+  "snap inc": "snap",
+  "snapchat": "snap",
+  "reddit inc": "reddit",
+  "tiktok": "bytedance",
+  "bytedance ltd": "bytedance"
+}

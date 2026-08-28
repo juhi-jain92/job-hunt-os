@@ -17,9 +17,10 @@ import greenhouse_sources  # Greenhouse public jobs board API
 from config.filters import detect_remote
 
 # ---------- 0. Load context store ----------
-_search_config = json.loads(open(os.path.join(os.path.dirname(__file__), "config", "search_config.json")).read())
-QUERIES      = _search_config.get("search_queries", [])
-TITLE_TERMS  = _search_config.get("title_filter_terms", [])
+_search_config    = json.loads(open(os.path.join(os.path.dirname(__file__), "config", "search_config.json")).read())
+QUERIES           = _search_config.get("search_queries", [])
+TITLE_TERMS       = _search_config.get("title_filter_terms", [])
+DATE_POSTED_FILTER = _search_config.get("date_posted_filter", "week")
 
 # ---------- 1. Load secrets ----------
 load_dotenv()
@@ -49,7 +50,7 @@ def fetch_jsearch(query: str) -> list:
         "query":      query,
         "page":       "1",
         "num_pages":  "5",
-        "date_posted": "month",
+        "date_posted": DATE_POSTED_FILTER,
     }
     for attempt in (1, 2):
         try:

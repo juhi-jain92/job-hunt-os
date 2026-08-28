@@ -42,9 +42,11 @@ def _load(path: str, label: str) -> str:
     print(f"  [warning] {label} not found at {path} — continuing without it.", file=sys.stderr)
     return ""
 
-context_store    = json.loads(open(os.path.join(BASE, "config", "context_store.json")).read())
-_search_config   = json.loads(open(os.path.join(BASE, "config", "search_config.json")).read())
-MODEL            = _search_config.get("scorer_settings", {}).get("model", "claude-sonnet-4-6")
+context_store  = json.loads(open(os.path.join(BASE, "config", "context_store.json")).read())
+_search_config = json.loads(open(os.path.join(BASE, "config", "search_config.json")).read())
+_scorer_cfg    = _search_config.get("scorer_settings", {})
+MODEL          = _scorer_cfg.get("model",  "claude-sonnet-5")
+EFFORT         = _scorer_cfg.get("effort", "low")
 rubric_text      = _load("config/job_fit_eval_framework.md", "eval framework")
 resume_ai        = _load("resume/resume_ai.md",              "AI resume")
 resume_adtech    = _load("resume/resume_adtech.md",          "Adtech resume")
@@ -199,6 +201,7 @@ def _call_claude(prompt: str) -> Optional[dict]:
         max_tokens=500,
         system=GUARDRAILS,
         messages=[{"role": "user", "content": prompt}],
+        output_config={"effort": EFFORT},
         timeout=30,
     )
     raw = msg.content[0].text.strip()
@@ -234,7 +237,7 @@ def score_job(job: dict) -> Optional[dict]:
                 time.sleep(2)
             else:
                 print(f"  [error] Attempt 2 also failed for {job_id} ({e}) — skipping.", file=sys.stderr)
-        except anthropic.APITimeoutError as e:
+        except anthropic.APITimeoutError:
             if attempt == 1:
                 print(f"  [retry] API timeout on attempt 1 for {job_id} — retrying in 10 s ...", file=sys.stderr)
                 time.sleep(10)
@@ -299,7 +302,7 @@ else:
     print(f"  {len(all_rows)} total rows | {len(to_score)} unscored and eligible\n")
 
 if ESTIMATE_MODE:
-    # Sonnet 4 pricing (per 1M tokens)
+    # Sonnet 4.6 pricing (per 1M tokens)
     INPUT_PRICE_PER_M  = 3.00
     OUTPUT_PRICE_PER_M = 15.00
     AVG_OUTPUT_TOKENS  = 250  # typical JSON response
@@ -331,7 +334,7 @@ if ESTIMATE_MODE:
 
     print(f"""
 {'='*50}
-COST ESTIMATE — match_scorer.py
+COST ESTIMATE — match_scorer.py ({MODEL}, effort={EFFORT})
 {'='*50}
 Unscored jobs:        {n}
 Sample size:          {len(sample)} rows

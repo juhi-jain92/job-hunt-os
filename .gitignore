@@ -5,6 +5,9 @@ config/context_store.json
 config/career-plan.md
 config/story-to-sell.md
 config/job_fit_eval_framework.md
+config/past_employers.json
+data/
+Connections*.csv
 outputs/
 __pycache__/
 *.pyc

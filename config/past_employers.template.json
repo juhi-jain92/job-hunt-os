@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy to past_employers.json (gitignored) and fill in your real tenure dates. LinkedIn's connections export has no employment history for your connections — only the date you connected. So a connection made during one of these windows is inferred to be a colleague from that employer and tagged tie_type=dormant. The evidence is written to tie_basis so you can correct wrong guesses by hand. Dates are YYYY-MM. Omit 'end' for a current role.",
+
+  "tenures": [
+    { "employer": "LG Ads",   "start": "2021-06", "end": "2026-04" },
+    { "employer": "Alphonso", "start": "2019-01", "end": "2021-05" },
+    { "employer": "EXL",      "start": "2016-07", "end": "2018-12" }
+  ]
+}

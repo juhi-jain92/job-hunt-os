@@ -31,6 +31,74 @@ COLUMNS = [
 # Maps column name → column number (1-based) so we can update specific cells later
 COL_INDEX = {col: i + 1 for i, col in enumerate(COLUMNS)}
 
+# ---------- Referral engine tabs ----------
+
+CONTACTS_TAB   = "Contacts"
+TARGETS_TAB    = "Targets"
+REFERRALS_TAB  = "Referrals"    # referral lane — one row per 7+ role
+NETWORKING_TAB = "Networking"   # networking lane — one row per cold prospect
+
+CONTACTS_COLUMNS = [
+    "contact_id", "owner", "full_name", "first_name", "linkedin_url", "email",
+    "company_raw", "company_norm", "title", "seniority_hint", "connected_on",
+    "tie_basis", "tie_type", "tier", "last_contacted", "outreach_count",
+    "source_file", "ingested_at", "notes",
+]
+
+TARGETS_COLUMNS = [
+    "company_norm", "company_display", "size_class", "niche", "product_lines",
+    "source", "best_job_id", "best_tier", "role_posted_at", "first_degree_count",
+    "dormant_count", "route", "linkedin_people_url", "linkedin_isb_url",
+    "linkedin_dtu_url", "careers_url", "news_search_url", "digest",
+    "digest_generated_at", "last_recommended_on", "recommend_count", "status", "notes",
+]
+
+# Referral lane. One row per role scoring 7+, because the daily question is
+# per-role: "does this job have a warm path, and through whom?" Three contact
+# slots — two people plus a recruiter — rather than a row per contact, so
+# forty roles fit on one screen.
+#
+# referrer_1, referrer_2, recruiter and fallback_contact are written as
+# =HYPERLINK() formulas, so the name itself is the click target and no
+# separate URL column is needed.
+#
+# tier is deliberately absent: every row here is already 7+ by construction.
+REFERRALS_COLUMNS = [
+    "job_id", "title", "company", "location", "source", "posted_at",
+    "ai_score", "adtech_score", "notes",
+    "first_degree_available", "referrer_1", "referrer_1_owner",
+    "referrer_2", "referrer_2_owner", "recruiter",
+    "note_to_send", "fallback_contact",
+    "sent_1", "sent_2", "sent_rec", "followup_due",
+]
+
+# Networking lane. Column order follows the daily send block, not
+# normalized-data shape: what's due → who → read the draft → check the hook →
+# send → mark it. Join keys sit at the far right so they can be hidden.
+NETWORKING_COLUMNS = [
+    "outreach_id", "due_date", "priority", "status", "contact_name",
+    "company_display", "role_title", "channel", "message_shape", "owner",
+    "link", "subject", "draft_body", "personalization_hook", "personalized",
+    "digest", "sent_date", "response", "response_date", "follow_up_due",
+    "follow_up_flag", "follow_up_sent", "job_id", "contact_id", "company_norm",
+    "match_confidence", "generated_at", "notes",
+]
+
+# Statuses a human sets by hand — scripts must never overwrite these rows.
+USER_STATUSES = {"sent", "replied", "closed", "skipped"}
+OUTREACH_USER_STATUSES = USER_STATUSES  # retained for existing callers
+
+
+def hyperlink(url: str, label: str) -> str:
+    """
+    A clickable cell. Written with USER_ENTERED so Sheets evaluates it.
+    Falls back to plain text when there is no URL to point at.
+    """
+    if not url:
+        return label or ""
+    safe = (label or url).replace('"', "'")
+    return f'=HYPERLINK("{url}","{safe}")'
+
 
 def _client():
     """Creates an authenticated gspread client using the service account key."""
@@ -38,14 +106,12 @@ def _client():
     return gspread.authorize(creds)
 
 
-def open_or_create_sheet():
+def _spreadsheet():
     """
-    Returns the first worksheet of 'Job Hunt OS'.
-    If the spreadsheet doesn't exist yet, creates it and shares it with OWNER_EMAIL.
-    If the sheet is empty, writes the header row.
+    Opens the 'Job Hunt OS' spreadsheet, creating and sharing it if missing.
+    Shared by open_or_create_sheet() and open_or_create_tab().
     """
     client = _client()
-
     try:
         spreadsheet = client.open(SHEET_NAME)
         print(f"  Opened existing sheet: '{SHEET_NAME}'")
@@ -54,8 +120,158 @@ def open_or_create_sheet():
         # Share with your Google account so you can open it in your browser
         spreadsheet.share(OWNER_EMAIL, perm_type="user", role="writer", notify=False)
         print(f"  Created new sheet '{SHEET_NAME}' and shared with {OWNER_EMAIL}")
+    return spreadsheet
 
-    sheet = spreadsheet.sheet1
+
+def col_letter(n: int) -> str:
+    """1 → A, 26 → Z, 27 → AA. The Outreach tab runs past column Z."""
+    letters = ""
+    while n > 0:
+        n, rem = divmod(n - 1, 26)
+        letters = chr(65 + rem) + letters
+    return letters
+
+
+def open_or_create_tab(tab_name: str, columns: list, rows: int = 2000):
+    """
+    Returns the named worksheet, creating it with a header row if missing.
+
+    If the existing header is a strict prefix of `columns`, the missing columns
+    are appended in place — sheet1 never got this, and new tracking columns
+    are expected as the workflow settles.
+    """
+    ss = _spreadsheet()
+    try:
+        ws = ss.worksheet(tab_name)
+    except gspread.WorksheetNotFound:
+        ws = ss.add_worksheet(title=tab_name, rows=rows, cols=len(columns))
+        print(f"  Created tab '{tab_name}'")
+
+    header = ws.row_values(1)
+    if not header or header[0] != columns[0]:
+        ws.update(values=[columns], range_name="A1", value_input_option="USER_ENTERED")
+        print(f"  Wrote header row on '{tab_name}'")
+    elif header == columns[: len(header)] and len(header) < len(columns):
+        start = col_letter(len(header) + 1)
+        ws.update(
+            values=[columns[len(header):]],
+            range_name=f"{start}1",
+            value_input_option="USER_ENTERED",
+        )
+        print(f"  Extended '{tab_name}' header with {len(columns) - len(header)} new column(s)")
+    elif header != columns:
+        raise RuntimeError(
+            f"Header drift on '{tab_name}'.\n  expected: {columns}\n  found:    {header}"
+        )
+
+    return ws
+
+
+def get_contacts_tab():
+    return open_or_create_tab(CONTACTS_TAB, CONTACTS_COLUMNS)
+
+
+def get_targets_tab():
+    return open_or_create_tab(TARGETS_TAB, TARGETS_COLUMNS)
+
+
+def get_referrals_tab():
+    return open_or_create_tab(REFERRALS_TAB, REFERRALS_COLUMNS)
+
+
+def get_networking_tab():
+    return open_or_create_tab(NETWORKING_TAB, NETWORKING_COLUMNS)
+
+
+def get_existing_keys(ws, key_col: int = 1) -> set:
+    """Generalization of get_existing_ids() for any tab's dedupe key column."""
+    return set(ws.col_values(key_col)[1:])
+
+
+def append_rows_dedup(ws, records: list, columns: list, key: str) -> int:
+    """
+    Appends records not already present (by `key`) in one API call.
+    Each record is a dict; missing columns are written as blank.
+    Returns the count of rows added.
+    """
+    existing = get_existing_keys(ws, key_col=columns.index(key) + 1)
+    fresh = [r for r in records if r.get(key) and r[key] not in existing]
+    if not fresh:
+        return 0
+
+    rows = [[str(r.get(col, "")) for col in columns] for r in fresh]
+    ws.append_rows(rows, value_input_option="USER_ENTERED")
+    return len(fresh)
+
+
+def batch_update_cells(ws, updates: list, columns: list):
+    """
+    Writes cell updates across a tab in one API call.
+
+    Each item in `updates` is a dict:
+        row_num  int  — 1-based sheet row number
+        values   dict — {column_name: value}
+
+    Contiguous columns are merged into a single range so a row touching
+    status+notes costs one range entry, not two.
+    """
+    if not updates:
+        return
+
+    tab = ws.title
+    index = {col: i + 1 for i, col in enumerate(columns)}
+    data = []
+
+    for u in updates:
+        row = u["row_num"]
+        cols = sorted(
+            (index[name], value) for name, value in u["values"].items() if name in index
+        )
+        run = []
+        for col_num, value in cols:
+            if run and col_num == run[-1][0] + 1:
+                run.append((col_num, value))
+                continue
+            if run:
+                data.append(_range_entry(tab, row, run))
+            run = [(col_num, value)]
+        if run:
+            data.append(_range_entry(tab, row, run))
+
+    if data:
+        ws.spreadsheet.values_batch_update({
+            "valueInputOption": "USER_ENTERED",
+            "data": data,
+        })
+
+
+def _range_entry(tab: str, row: int, run: list) -> dict:
+    """Builds one A1-notation range entry from a run of contiguous columns."""
+    start = col_letter(run[0][0])
+    end   = col_letter(run[-1][0])
+    rng   = f"'{tab}'!{start}{row}" if start == end else f"'{tab}'!{start}{row}:{end}{row}"
+    return {"range": rng, "values": [[v for _, v in run]]}
+
+
+def guarded_update(ws, row_num: int, current_status: str, new_values: dict,
+                   columns: list, user_statuses: set = USER_STATUSES) -> bool:
+    """
+    Writes new_values unless the row is user-owned. Returns False if skipped.
+    Same contract the scorer uses to avoid clobbering hand-set statuses.
+    """
+    if (current_status or "").strip().lower() in user_statuses:
+        return False
+    batch_update_cells(ws, [{"row_num": row_num, "values": new_values}], columns)
+    return True
+
+
+def open_or_create_sheet():
+    """
+    Returns the first worksheet of 'Job Hunt OS'.
+    If the spreadsheet doesn't exist yet, creates it and shares it with OWNER_EMAIL.
+    If the sheet is empty, writes the header row.
+    """
+    sheet = _spreadsheet().sheet1
 
     # Write header if missing or if first cell isn't "job_id" (e.g. after a manual clear)
     existing = sheet.get_all_values()
