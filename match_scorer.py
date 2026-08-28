@@ -207,22 +207,17 @@ Scoring rules:
 """.strip()
 
 
-def build_prompt(job: dict) -> str:
-    title   = job.get("title", "")
-    company = job.get("company", "")
-    loc     = job.get("location", "")
-    salary  = job.get("salary_text", "") or "not listed"
-    desc    = (job.get("description", "") or "")[:5000]
-
-    return f"""Score this job posting for the candidate below.
-
-JOB POSTING:
-Title:    {title}
-Company:  {company}
-Location: {loc}
-Salary:   {salary}
-Description:
-{desc}
+# Everything identical across calls lives in the system prompt, in stable
+# order, with cache_control on the last block. Prompt caching is a prefix
+# match, so the job posting — the only thing that varies — goes in the user
+# message, after the cached prefix. ~4K of ~5K input tokens are then billed
+# at the 0.1x cache-read rate from the second call on. The old layout put
+# the job FIRST and the static content after it, which made every byte
+# cache-miss on every call.
+SYSTEM_BLOCKS = [
+    {
+        "type": "text",
+        "text": f"""{GUARDRAILS}
 
 ---
 CANDIDATE PROFILE:
@@ -230,7 +225,29 @@ CANDIDATE PROFILE:
 {RESUME_SECTION}
 
 ---
-{JSON_SCHEMA}"""
+{JSON_SCHEMA}""",
+        "cache_control": {"type": "ephemeral"},
+    }
+]
+
+
+def build_prompt(job: dict) -> str:
+    """Only what varies per call: the job posting itself."""
+    title   = job.get("title", "")
+    company = job.get("company", "")
+    loc     = job.get("location", "")
+    salary  = job.get("salary_text", "") or "not listed"
+    desc    = (job.get("description", "") or "")[:5000]
+
+    return f"""Score this job posting for the candidate in your instructions.
+
+JOB POSTING:
+Title:    {title}
+Company:  {company}
+Location: {loc}
+Salary:   {salary}
+Description:
+{desc}"""
 
 
 def _call_claude(prompt: str) -> Optional[dict]:
@@ -244,7 +261,7 @@ def _call_claude(prompt: str) -> Optional[dict]:
     msg = client.messages.create(
         model=MODEL,
         max_tokens=2000,
-        system=GUARDRAILS,
+        system=SYSTEM_BLOCKS,
         messages=[{"role": "user", "content": prompt}],
         output_config={"effort": EFFORT},
         timeout=60,
@@ -367,29 +384,41 @@ def main():
         )
 
 
-    _before_blank = len(to_score)
-    blank_rows = [r for r in to_score if not _is_scorable(r)]
-    to_score    = [r for r in to_score if _is_scorable(r)]
+    unscorable = [r for r in to_score if not _is_scorable(r)]
+    to_score   = [r for r in to_score if _is_scorable(r)]
 
-    if blank_rows and (PREVIEW_MODE or ESTIMATE_MODE):
-        print(f"  Ignoring {len(blank_rows)} row(s) with no id, title, or description.")
-    elif blank_rows:
-        print(f"  Skipping {len(blank_rows)} row(s) with no id, title, or description "
-              f"— leftovers from an earlier sheet.")
-        # Mark them so they never come back around on the next run.
-        sheets.batch_write_scores(sheet, [
-            {
+    if unscorable and (PREVIEW_MODE or ESTIMATE_MODE):
+        print(f"  Ignoring {len(unscorable)} unscorable row(s).")
+    elif unscorable:
+        # Two different situations get two different labels. A row with no
+        # title is dead data; a row with a real title but no description is a
+        # real job the source failed to describe (the VC portfolio actor
+        # returns none) — worth a manual glance, not a silent burial.
+        marks = []
+        n_empty = n_nodesc = 0
+        for r in unscorable:
+            if str(r.get("title", "")).strip():
+                n_nodesc += 1
+                track = "Skip | NO DESCRIPTION"
+                note = ("Source provided no job description, so it cannot be "
+                        "scored. If the title looks interesting, open the URL.")
+            else:
+                n_empty += 1
+                track = "Skip | EMPTY ROW"
+                note = "No job data on this row — not sent to the model."
+            marks.append({
                 "row_num": r["_row_num"],
                 "ai_score": 0,
                 "adtech_score": 0,
                 "match_flag": "LOW MATCH",
-                "recommended_track": "Skip | EMPTY ROW",
-                "notes": "No job data on this row — not sent to the model.",
+                "recommended_track": track,
+                "notes": note,
                 "status": "low match",
                 "write_status": True,
-            }
-            for r in blank_rows
-        ])
+            })
+        print(f"  Marking without model calls: {n_empty} empty row(s), "
+              f"{n_nodesc} job(s) with no description.")
+        sheets.batch_write_scores(sheet, marks)
 
     if PREVIEW_MODE:
         to_score = to_score[:PREVIEW_LIMIT]
@@ -412,22 +441,35 @@ def main():
         step = max(1, len(to_score) // sample_size)
         sample = [to_score[i] for i in range(0, len(to_score), step)][:sample_size]
 
+        # Count the cached prefix and the variable part separately, because
+        # they are billed at different rates: the system blocks cost 1.25x
+        # once (cache write) then 0.1x on every later call.
+        prefix_tokens = client.messages.count_tokens(
+            model=MODEL,
+            system=SYSTEM_BLOCKS,
+            messages=[{"role": "user", "content": "x"}],
+        ).input_tokens
+
         total_sample_tokens = 0
         for row in sample:
-            prompt = build_prompt(row)
             resp = client.messages.count_tokens(
                 model=MODEL,
-                system=GUARDRAILS,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[{"role": "user", "content": build_prompt(row)}],
             )
             total_sample_tokens += resp.input_tokens
 
-        avg_input_tokens = total_sample_tokens // len(sample)
+        avg_variable_tokens = total_sample_tokens // len(sample)
+        avg_input_tokens = prefix_tokens + avg_variable_tokens
         n = len(to_score)
 
-        total_input  = avg_input_tokens * n
+        total_input  = avg_variable_tokens * n            # full price
+        cached_input = prefix_tokens * (n - 1)            # 0.1x after first call
         total_output = AVG_OUTPUT_TOKENS * n
-        cost_input   = total_input  / 1_000_000 * INPUT_PRICE_PER_M
+        cost_input   = (
+            total_input  / 1_000_000 * INPUT_PRICE_PER_M
+            + prefix_tokens / 1_000_000 * INPUT_PRICE_PER_M * 1.25   # cache write
+            + cached_input / 1_000_000 * INPUT_PRICE_PER_M * 0.10   # cache reads
+        )
         cost_output  = total_output / 1_000_000 * OUTPUT_PRICE_PER_M
         total_cost   = cost_input + cost_output
         est_minutes  = (n * 10) // 60  # ~10s per job

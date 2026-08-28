@@ -6,7 +6,6 @@ public Greenhouse jobs board API. No auth required.
 import json
 import os
 import sys
-import time
 from html.parser import HTMLParser
 
 import requests
@@ -94,14 +93,18 @@ def _fetch_company(slug: str) -> list:
 # ── Public entry point ────────────────────────────────────────────────────────
 
 def fetch_greenhouse_jobs() -> list:
-    print(f"  [Greenhouse] Fetching from {len(GREENHOUSE_SLUGS)} companies:")
-    for slug in GREENHOUSE_SLUGS:
-        print(f"    {slug}")
+    print(f"  [Greenhouse] Fetching {len(GREENHOUSE_SLUGS)} company boards (8 at a time) ...")
+
+    # The boards are independent public endpoints on a CDN-backed API, so
+    # fetch them concurrently. 39 sequential calls with a politeness sleep
+    # took ~40s and dominated discovery runtime; a small pool cuts that to
+    # a few seconds without hammering anyone.
+    from concurrent.futures import ThreadPoolExecutor
 
     all_jobs = []
-    for slug in GREENHOUSE_SLUGS:
-        all_jobs.extend(_fetch_company(slug))
-        time.sleep(0.5)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for jobs in pool.map(_fetch_company, GREENHOUSE_SLUGS):
+            all_jobs.extend(jobs)
 
     # Filter to PM-relevant titles only — same logic as job_search.py pre-filter
     before = len(all_jobs)
