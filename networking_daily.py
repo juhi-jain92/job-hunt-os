@@ -30,6 +30,8 @@ Usage:
 
 import hashlib
 import json
+import math
+import re
 import os
 import sys
 from datetime import datetime, timedelta
@@ -89,6 +91,48 @@ def relevant_lines(lines: list) -> list:
         if any(t in low for t in RELEVANT_LINE_TERMS):
             keep.append(line)
     return keep
+
+
+# Who to actually email. Small companies get 1-2 notes and only to product
+# leadership; big companies get at least 5 across their product lines.
+PRODUCT_LEADER_RE = re.compile(
+    r"(?=.*\bproduct\b)(?=.*(vp|vice president|director|principal|staff|"
+    r"gpm|group product|head of|chief))", re.IGNORECASE)
+PRODUCT_ANY_RE = re.compile(r"\bproduct\b", re.IGNORECASE)
+LEADER_ANY_RE  = re.compile(
+    r"vp|vice president|director|principal|head of|chief|founder", re.IGNORECASE)
+
+SMALL_PEOPLE_TARGET = 2
+BIG_PEOPLE_MINIMUM  = 5
+
+
+def title_rank(title: str) -> int:
+    """0 = product leadership (the only tier small companies get)."""
+    t = title or ""
+    if PRODUCT_LEADER_RE.search(t):
+        return 0
+    if PRODUCT_ANY_RE.search(t):
+        return 1
+    if LEADER_ANY_RE.search(t):
+        return 2
+    return 3
+
+
+def ranked_candidates(pick: dict) -> list:
+    """Team-page + Hunter people as one list, best title first."""
+    out = []
+    for p in pick["info"].get("people", []):
+        out.append({"name": p["name"], "title": p.get("title", ""),
+                    "link": p.get("source", ""), "via": "team page", "email": ""})
+    hunter = pick["info"].get("hunter", {})
+    if hunter.get("available"):
+        for e in hunter.get("emails", []):
+            if e.get("name"):
+                out.append({"name": e["name"], "title": e.get("position", "") or "",
+                            "link": f"mailto:{e['email']}", "via": "Hunter.io",
+                            "email": e["email"]})
+    out.sort(key=lambda c: title_rank(c["title"]))
+    return out
 
 
 def _flag(name: str, default):
@@ -307,35 +351,36 @@ def main():
     rows = []
     for pick in picks:
         company = pick["company"]
-        hunter = pick["info"].get("hunter", {})
-        people = pick["info"].get("people", [])
+        candidates = ranked_candidates(pick)
 
+        if pick["size"] == "small":
+            # 1-2 notes, product leadership only. A small company's inbox is
+            # short; a note to the wrong person burns the whole company.
+            candidates = [c for c in candidates if title_rank(c["title"]) == 0]
+            per_line = min(SMALL_PEOPLE_TARGET, max(1, len(candidates)) if candidates else 1)
+        else:
+            per_line = max(PER_LINE, math.ceil(BIG_PEOPLE_MINIMUM / len(pick["lines"])))
+
+        used_names = set()
         for line in pick["lines"]:
             label = f"{company} — {line}" if line else company
-            title_filter = f'"{line}" ("Head of Product" OR "Director" OR "VP")' \
-                if line else None
+            title_filter = (f'"{line}" ("Head of Product" OR "Director" OR "VP")'
+                            if line else '"Product" ("VP" OR "Director" OR "Principal" OR "Staff" OR "GPM")')
 
-            for n in range(PER_LINE):
-                # A named human from a public source beats a search link.
-                named = people[n] if n < len(people) else None
-                hunter_person = None
-                if not named and hunter.get("available"):
-                    pool_e = hunter.get("emails", [])
-                    hunter_person = pool_e[n] if n < len(pool_e) else None
-
-                if named:
-                    link, note = named.get("source", ""), \
-                        f"From public team page: {named['title'][:60]}. Confirm before sending."
-                    name = named["name"]
-                elif hunter_person:
-                    link = f"mailto:{hunter_person['email']}"
-                    name = hunter_person["name"]
-                    note = f"From Hunter.io: {hunter_person['position'][:60]}. Verify the role is current."
+            pool = [c for c in candidates if c["name"] not in used_names]
+            for n in range(per_line):
+                person = pool[n] if n < len(pool) else None
+                if person:
+                    used_names.add(person["name"])
+                    name, link = person["name"], person["link"]
+                    note = (f"{person['via']}: {person['title'][:60]}. "
+                            "Verify the role is current before sending.")
+                    is_email = bool(person["email"])
                 else:
-                    link = people_search_url(company, title_filter) if title_filter \
-                        else people_search_url(company)
-                    name = ""
-                    note = "No public name found — open the search link and pick someone."
+                    name, is_email = "", False
+                    link = people_search_url(company, title_filter)
+                    note = ("No named product leader found — open the search "
+                            "link and pick one (VP/Director/Principal/Staff/GPM of Product).")
 
                 rows.append({
                     "outreach_id": prospect_id(company, line, n),
@@ -346,8 +391,8 @@ def main():
                     "company_display": label,
                     "job_open": pick.get("job_open", "N"),
                     "role_title": "",
-                    "channel": "email" if name and hunter_person else "linkedin_connect_note",
-                    "message_shape": "cold_email" if hunter_person else "stranger_no_ask",
+                    "channel": "email" if is_email else "linkedin_connect_note",
+                    "message_shape": "cold_email" if is_email else "stranger_no_ask",
                     "owner": "juhi",
                     "link": link,
                     "company_norm": pick["company_norm"],
