@@ -328,7 +328,9 @@ def append_new_jobs(sheet, jobs: list) -> int:
         ])
 
     # append_rows sends all rows in a single API call (much faster than one at a time)
-    sheet.append_rows(rows, value_input_option="USER_ENTERED")
+    # table_range="A1" anchors the append to the header table, so leftover
+    # blank-but-formatted rows can never push new data hundreds of rows down.
+    sheet.append_rows(rows, value_input_option="USER_ENTERED", table_range="A1")
     return len(new_jobs)
 
 
