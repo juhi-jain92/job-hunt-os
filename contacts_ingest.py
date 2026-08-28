@@ -1,7 +1,7 @@
 """
 contacts_ingest.py — Ingests LinkedIn connections exports into the Contacts tab.
 
-Reads both CSVs (Juhi's and her husband's), normalizes company names, infers
+Reads both CSVs (Juhi's and Anchit's), normalizes company names, infers
 dormant ties from tenure windows, dedupes across owners, and writes to the
 sheet. Idempotent: re-running with a fresh export updates company and title on
 existing contacts (people change jobs) and appends anyone new.
@@ -11,7 +11,7 @@ Usage:
     python3 contacts_ingest.py --dry-run          parse and report, write nothing
     python3 contacts_ingest.py --stats            print a breakdown after parsing
     python3 contacts_ingest.py --report-unmatched top companies with no job match
-    python3 contacts_ingest.py --files a.csv:juhi b.csv:husband
+    python3 contacts_ingest.py --files a.csv:juhi b.csv:anchit
 """
 
 import csv
@@ -32,7 +32,7 @@ PAST_EMPLOYERS_PATH = os.path.join(BASE, "config", "past_employers.json")
 
 DEFAULT_FILES = [
     (os.path.join(CONNECTIONS_DIR, "juhi_connections.csv"), "juhi"),
-    (os.path.join(CONNECTIONS_DIR, "husband_connections.csv"), "husband"),
+    (os.path.join(CONNECTIONS_DIR, "anchit_connections.csv"), "anchit"),
 ]
 
 DRY_RUN           = "--dry-run" in sys.argv

@@ -14,3 +14,4 @@ __pycache__/
 .DS_Store
 # Personal reference material moved out of active scope — never commit
 _archive/
+
