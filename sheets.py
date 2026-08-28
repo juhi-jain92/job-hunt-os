@@ -22,14 +22,11 @@ SCOPES = [
 ]
 
 # Exact column order in the sheet — must match the header row.
-# score is the 0-10 total the referral lane gates on (score >= 7); ai_score
-# and adtech_score are the per-track dimension scores behind it. Track,
-# tier, and resume recommendation live in notes as prose — they are
-# explanations, not join keys.
+# score is the single 0-10 total; the referral lane gates on score >= 7.
+# Everything qualitative lives in notes as prose.
 COLUMNS = [
     "job_id", "title", "company", "location", "source", "posted_at",
-    "score", "ai_score", "adtech_score", "status", "notes", "url",
-    "description",
+    "score", "status", "notes", "url", "description",
 ]
 
 # Maps column name → column number (1-based) so we can update specific cells later
@@ -69,7 +66,7 @@ TARGETS_COLUMNS = [
 # tier is deliberately absent: every row here is already 7+ by construction.
 REFERRALS_COLUMNS = [
     "job_id", "title", "company", "location", "source", "posted_at",
-    "ai_score", "adtech_score", "notes",
+    "score", "notes",
     "first_degree_available", "referrer_1", "referrer_1_owner",
     "referrer_2", "referrer_2_owner", "recruiter",
     "note_to_send", "fallback_contact",
@@ -318,10 +315,8 @@ def append_new_jobs(sheet, jobs: list) -> int:
             job.get("location",  ""),
             job.get("source",    ""),
             job.get("posted_at", ""),
-            "",       # score        — filled by scorer
-            "",       # ai_score     — filled by scorer
-            "",       # adtech_score — filled by scorer
-            "new",    # status       — default until processed
+            "",       # score — filled by scorer
+            "new",    # status — default until processed
             "",       # notes
             job.get("url", ""),
             (job.get("description") or "")[:8000],
@@ -371,9 +366,7 @@ def batch_write_scores(sheet, updates: list):
     Each item in `updates`:
         row_num       int  — 1-based sheet row number
         score         0-10 total (the referral lane gates on this)
-        ai_score      per-track dimension
-        adtech_score  per-track dimension
-        notes         str  — track, resume, and the scorer's reason as prose
+        notes         str  — the scorer's reason as prose
         status        str
         write_status  bool — only write status if True (cell was blank/new)
 
@@ -386,10 +379,9 @@ def batch_write_scores(sheet, updates: list):
 
     for u in updates:
         row = u["row_num"]
-        # score..adtech_score are contiguous — one range
         data.append({
-            "range": f"'{tab}'!{c('score')}{row}:{c('adtech_score')}{row}",
-            "values": [[u.get("score", ""), u.get("ai_score", ""), u.get("adtech_score", "")]],
+            "range": f"'{tab}'!{c('score')}{row}",
+            "values": [[u.get("score", "")]],
         })
         data.append({
             "range": f"'{tab}'!{c('notes')}{row}",

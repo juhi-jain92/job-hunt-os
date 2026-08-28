@@ -1,7 +1,7 @@
 """
 match_scorer.py — Scores every unscored job in the ledger against Juhi's
-resume key details, writing score (0-10), ai_score, adtech_score, status,
-and notes back to the sheet.
+resume key details, writing one score (0-10), status, and notes back to
+the sheet.
 
 Division of labor: the model judges four dimensions and the qualitative
 dealbreakers; Python does every derivation (total, sub-score mapping,
@@ -128,7 +128,6 @@ Return ONLY a valid JSON object, no markdown fences, no prose:
   "ai":              <0-3  how central applied-AI product work is to this job and how well she fits it>,
   "skills":          <0-2  overlap between JD requirements and her actual skills>,
   "level":           <0-2  seniority and scope fit for a Senior PM-to-Director band>,
-  "adtech_relevant": <true if the domain score comes from adtech/CTV/programmatic specifically>,
   "dealbreaker":     <"" or the reason: salary top clearly under the floor, production
                       coding as a hard requirement, sales/account role not product,
                       agency not product company>,
@@ -227,8 +226,6 @@ def derive(result: dict, current_status: str) -> dict:
 
     return {
         "score":        score,
-        "ai_score":     ai,
-        "adtech_score": domain if result.get("adtech_relevant") else 0,
         "notes":        reason,
         "status":       status,
         "write_status": current_status in ("", "new"),
@@ -276,7 +273,7 @@ def main():
 
     if unscorable and not (ESTIMATE or PREVIEW):
         sheets.batch_write_scores(sheet, [{
-            "row_num": r["_row_num"], "score": 0, "ai_score": 0, "adtech_score": 0,
+            "row_num": r["_row_num"], "score": 0,
             "notes": ("No description from the source — cannot be scored."
                       if str(r.get("title", "")).strip()
                       else "Empty row."),
@@ -317,13 +314,12 @@ def main():
         if PREVIEW:
             print(json.dumps(result, indent=2))
             d = derive(result, str(row.get("status", "")).strip().lower())
-            print(f"  → would write: score={d['score']}  ai={d['ai_score']}  "
-                  f"adtech={d['adtech_score']}  status={d['status']}")
+            print(f"  → would write: score={d['score']}  status={d['status']}")
             continue
 
         d = derive(result, str(row.get("status", "")).strip().lower())
         updates.append({"row_num": row["_row_num"], **{
-            k: d[k] for k in ("score", "ai_score", "adtech_score", "notes", "status", "write_status")
+            k: d[k] for k in ("score", "notes", "status", "write_status")
         }})
         counters[f"score {d['score']}"] += 1
         if d["skip"]:
