@@ -21,11 +21,15 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-# Exact column order in the sheet — must match the header row
+# Exact column order in the sheet — must match the header row.
+# score is the 0-10 total the referral lane gates on (score >= 7); ai_score
+# and adtech_score are the per-track dimension scores behind it. Track,
+# tier, and resume recommendation live in notes as prose — they are
+# explanations, not join keys.
 COLUMNS = [
-    "job_id", "title", "company", "location", "remote", "salary_text", "url",
-    "source", "posted_at", "ai_score", "adtech_score", "match_flag",
-    "recommended_track", "cover_letter", "status", "notes", "description",
+    "job_id", "title", "company", "location", "source", "posted_at",
+    "score", "ai_score", "adtech_score", "status", "notes", "url",
+    "description",
 ]
 
 # Maps column name → column number (1-based) so we can update specific cells later
@@ -308,58 +312,24 @@ def append_new_jobs(sheet, jobs: list) -> int:
     rows = []
     for job in new_jobs:
         rows.append([
-            job.get("job_id",      ""),
-            job.get("title",       ""),
-            job.get("company",     ""),
-            job.get("location",    ""),
-            job.get("remote",      "Unknown"),
-            job.get("salary_text") or "",
-            job.get("url",         ""),
-            job.get("source",      ""),
-            job.get("posted_at",   ""),
-            "",       # ai_score       — filled by scorer (step 2b)
-            "",       # adtech_score   — filled by scorer (step 2b)
-            "",       # match_flag     — filled by scorer (step 2b)
-            "",       # recommended_track — filled by scorer (step 2b)
-            "",       # cover_letter   — filled by cover letter step (step 2c)
-            "new",    # status         — default until processed
+            job.get("job_id",    ""),
+            job.get("title",     ""),
+            job.get("company",   ""),
+            job.get("location",  ""),
+            job.get("source",    ""),
+            job.get("posted_at", ""),
+            "",       # score        — filled by scorer
+            "",       # ai_score     — filled by scorer
+            "",       # adtech_score — filled by scorer
+            "new",    # status       — default until processed
             "",       # notes
-            (job.get("description") or "")[:8000],  # description — up to 8000 chars
+            job.get("url", ""),
+            (job.get("description") or "")[:8000],
         ])
 
     # append_rows sends all rows in a single API call (much faster than one at a time)
     sheet.append_rows(rows, value_input_option="USER_ENTERED")
     return len(new_jobs)
-
-
-def update_scores(sheet, job_id: str, ai_score, adtech_score, match_flag: str, recommended_track: str):
-    """
-    Finds the row for a given job_id and writes scoring results into it.
-    Called once per job by scorer.py in step 2b.
-    """
-    cell = sheet.find(job_id, in_column=1)
-    if not cell:
-        print(f"  [warning] job_id not found in sheet: {job_id}")
-        return
-    row = cell.row
-    sheet.update_cell(row, COL_INDEX["ai_score"],          ai_score)
-    sheet.update_cell(row, COL_INDEX["adtech_score"],      adtech_score)
-    sheet.update_cell(row, COL_INDEX["match_flag"],        match_flag)
-    sheet.update_cell(row, COL_INDEX["recommended_track"], recommended_track)
-
-
-def update_cover_letter(sheet, job_id: str, cover_letter: str, status: str):
-    """
-    Writes the generated cover letter and final status into a job's row.
-    Called by cover_letter.py in step 2c.
-    """
-    cell = sheet.find(job_id, in_column=1)
-    if not cell:
-        print(f"  [warning] job_id not found in sheet: {job_id}")
-        return
-    row = cell.row
-    sheet.update_cell(row, COL_INDEX["cover_letter"], cover_letter)
-    sheet.update_cell(row, COL_INDEX["status"],       status)
 
 
 def clear_data_rows(sheet):
@@ -394,47 +364,39 @@ def get_all_rows_with_numbers(sheet) -> list:
 
 def batch_write_scores(sheet, updates: list):
     """
-    Writes all scoring results to the sheet in a single API call.
+    Writes all scoring results in a single API call.
 
-    Each item in `updates` is a dict with:
-        row_num          int   — 1-based sheet row number
-        ai_score         int/str
-        adtech_score     int/str
-        match_flag       str   — track label
-        recommended_track str  — "Tier X | TRACK"
-        notes            str   — scorer reason
-        status           str   — status value to write
-        write_status     bool  — only write status if True (i.e. cell was empty)
+    Each item in `updates`:
+        row_num       int  — 1-based sheet row number
+        score         0-10 total (the referral lane gates on this)
+        ai_score      per-track dimension
+        adtech_score  per-track dimension
+        notes         str  — track, resume, and the scorer's reason as prose
+        status        str
+        write_status  bool — only write status if True (cell was blank/new)
 
-    Column layout (1-based, after adding "remote" as col E):
-        J=10 ai_score  K=11 adtech_score  L=12 match_flag  M=13 recommended_track
-        N=14 cover_letter (never touched)  O=15 status  P=16 notes
+    Ranges are derived from COL_INDEX, so reordering COLUMNS cannot silently
+    write into the wrong column the way the old hardcoded letters could.
     """
-    tab = sheet.title   # actual tab name, needed in A1 range notation
+    tab = sheet.title
+    c = lambda name: col_letter(COL_INDEX[name])
     data = []
 
     for u in updates:
         row = u["row_num"]
-        # Columns J–M in one range (scores + flags)
+        # score..adtech_score are contiguous — one range
         data.append({
-            "range": f"'{tab}'!J{row}:M{row}",
-            "values": [[
-                u["ai_score"],
-                u["adtech_score"],
-                u["match_flag"],
-                u["recommended_track"],
-            ]],
+            "range": f"'{tab}'!{c('score')}{row}:{c('adtech_score')}{row}",
+            "values": [[u.get("score", ""), u.get("ai_score", ""), u.get("adtech_score", "")]],
         })
-        # Column P — notes / reason
         data.append({
-            "range": f"'{tab}'!P{row}",
-            "values": [[u["notes"]]],
+            "range": f"'{tab}'!{c('notes')}{row}",
+            "values": [[u.get("notes", "")]],
         })
-        # Column O — status (only when the cell was blank)
         if u.get("write_status"):
             data.append({
-                "range": f"'{tab}'!O{row}",
-                "values": [[u["status"]]],
+                "range": f"'{tab}'!{c('status')}{row}",
+                "values": [[u.get("status", "")]],
             })
 
     if data:

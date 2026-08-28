@@ -19,7 +19,7 @@ is never written without --allow-fuzzy, and even then it is flagged in notes.
 Usage:
     python3 referral_match.py --preview 5      print the join, write nothing
     python3 referral_match.py                  write the Referrals tab
-    python3 referral_match.py --min-score 9    Tier 1 only
+    python3 referral_match.py --min-score 9    top matches only
     python3 referral_match.py --fresh-only     roles posted in the last 48h
     python3 referral_match.py --allow-fuzzy
 """
@@ -34,10 +34,6 @@ from linkedin_urls import people_search_url
 from normalize import match_company, norm_company
 
 BASE = os.path.dirname(__file__)
-
-# The scorer writes recommended_track as "Tier 2 | AI" but never persists
-# total_score, so tier is the score signal. Tier 2 is exactly 7-8.
-TIER_FLOOR = {"Tier 1": 9, "Tier 2": 7, "Tier 3": 5, "Skip": 0}
 
 FRESH_HOURS = 48
 AUTO_FILL_CONFIDENCE = {"exact", "alias", "subset"}
@@ -63,13 +59,12 @@ ALLOW_FUZZY  = "--allow-fuzzy" in sys.argv
 FRESH_ONLY   = "--fresh-only" in sys.argv
 
 
-def parse_tier(recommended_track: str) -> str:
-    return (recommended_track or "").split("|")[0].strip()
-
-
 def qualifies(row: dict, min_score: int) -> bool:
-    tier = parse_tier(row.get("recommended_track", ""))
-    return bool(tier) and TIER_FLOOR.get(tier, 0) >= min_score
+    """The ledger's score column is the 0-10 total the scorer computed."""
+    try:
+        return float(row.get("score", "") or 0) >= min_score
+    except ValueError:
+        return False
 
 
 def parse_posted(value: str):

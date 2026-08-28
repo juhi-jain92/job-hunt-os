@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 import sheets              # Google Sheets read/write helper
 import apify_sources       # Apify actor fetchers (VC portfolio, Wellfound)
 import greenhouse_sources  # Greenhouse public jobs board API
-from config.filters import detect_remote
 
 # ---------- 0. Load context store ----------
 _search_config    = json.loads(open(os.path.join(os.path.dirname(__file__), "config", "search_config.json")).read())
@@ -74,16 +73,6 @@ def normalize_jsearch(job: dict) -> dict:
     Maps a raw JSearch job object to the shared schema.
     All Apify sources use this same shape so the whole list is uniform.
     """
-    lo     = job.get("job_min_salary")
-    hi     = job.get("job_max_salary")
-    period = job.get("job_salary_period") or ""
-    if lo and hi:
-        salary_text = f"${lo:,.0f}–${hi:,.0f} {period}".strip()
-    elif lo or hi:
-        salary_text = f"${(lo or hi):,.0f} {period}".strip()
-    else:
-        salary_text = None
-
     city  = job.get("job_city")
     state = job.get("job_state")
     if city and state:
@@ -101,8 +90,6 @@ def normalize_jsearch(job: dict) -> dict:
         "title":       title_raw,
         "company":     job.get("employer_name"),
         "location":    location,
-        "remote":      detect_remote(title_raw, location or "", desc_raw),
-        "salary_text": salary_text,
         "url":         job.get("job_apply_link") or job.get("job_google_link"),
         "description": desc_raw[:8000],
         "source":      job.get("job_publisher"),

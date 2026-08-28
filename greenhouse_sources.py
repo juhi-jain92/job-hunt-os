@@ -22,8 +22,6 @@ GREENHOUSE_SLUGS = _config.get("greenhouse_slugs", [])
 
 # ── PM title filter ───────────────────────────────────────────────────────────
 
-from config.filters import detect_remote
-
 _search_config = json.loads(open(os.path.join(BASE, "config", "search_config.json")).read())
 TITLE_TERMS = _search_config.get("title_filter_terms", [])
 
@@ -80,8 +78,6 @@ def _fetch_company(slug: str) -> list:
             "title":       title,
             "company":     slug.capitalize(),
             "location":    location_name,
-            "remote":      detect_remote(title, location_name, description),
-            "salary_text": None,
             "url":         job.get("absolute_url", ""),
             "description": description,
             "source":      "Greenhouse",

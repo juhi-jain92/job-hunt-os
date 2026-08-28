@@ -236,7 +236,6 @@ def build_prompt(job: dict) -> str:
     title   = job.get("title", "")
     company = job.get("company", "")
     loc     = job.get("location", "")
-    salary  = job.get("salary_text", "") or "not listed"
     desc    = (job.get("description", "") or "")[:5000]
 
     return f"""Score this job posting for the candidate in your instructions.
@@ -245,7 +244,6 @@ JOB POSTING:
 Title:    {title}
 Company:  {company}
 Location: {loc}
-Salary:   {salary}
 Description:
 {desc}"""
 
@@ -399,19 +397,16 @@ def main():
         for r in unscorable:
             if str(r.get("title", "")).strip():
                 n_nodesc += 1
-                track = "Skip | NO DESCRIPTION"
-                note = ("Source provided no job description, so it cannot be "
-                        "scored. If the title looks interesting, open the URL.")
+                note = ("No description from the source — cannot be scored. "
+                        "If the title looks interesting, open the URL.")
             else:
                 n_empty += 1
-                track = "Skip | EMPTY ROW"
                 note = "No job data on this row — not sent to the model."
             marks.append({
                 "row_num": r["_row_num"],
+                "score": 0,
                 "ai_score": 0,
                 "adtech_score": 0,
-                "match_flag": "LOW MATCH",
-                "recommended_track": track,
                 "notes": note,
                 "status": "low match",
                 "write_status": True,
@@ -554,10 +549,6 @@ def main():
         level  = result.get("level_score", 0)
         total  = domain + ai_r + skills + level
 
-        tier = ("Tier 1" if total >= 9 else
-                "Tier 2" if total >= 7 else
-                "Tier 3" if total >= 5 else "Skip")
-
         if domain >= 2 and ai_r >= 2:
             track = "DUAL"
         elif ai_r == 3:
@@ -573,12 +564,9 @@ def main():
         reason = result.get("reason", "")
         resume = result.get("recommended_resume", "B")
 
-        match_flag        = track
-        recommended_track = f"{tier} | {track}"
-
-        if skip or tier == "Skip":
+        if skip:
             status = "low match"
-        elif tier in ("Tier 1", "Tier 2"):
+        elif total >= 7:
             status = "ready to apply"
         else:
             status = "spray"
@@ -587,22 +575,21 @@ def main():
         write_status   = current_status in ("", "new")
 
         updates.append({
-            "row_num":           row["_row_num"],
-            "ai_score":          ai_r,   # = ai_readiness_score by definition
-            "adtech_score":      result.get("adtech_score", 0),
-            "match_flag":        match_flag,
-            "recommended_track": recommended_track,
-            "notes":             reason,
-            "status":            status,
-            "write_status":      write_status,
+            "row_num":      row["_row_num"],
+            "score":        total,
+            "ai_score":     ai_r,                             # ai_readiness dimension
+            "adtech_score": result.get("adtech_score", 0),    # adtech domain dimension
+            "notes":        f"{track} · resume {resume} · {reason}",
+            "status":       status,
+            "write_status": write_status,
         })
 
-        counters[tier]  += 1
+        counters[f"score {total}"] += 1
         counters[track] += 1
         if skip:
             counters["hard_skip"] += 1
 
-        print(f"    score={total}  tier={tier}  track={track}  resume={resume}  hard_skip={skip}")
+        print(f"    score={total}  track={track}  resume={resume}  hard_skip={skip}")
         time.sleep(CALL_DELAY_SECONDS)
 
         if not PREVIEW_MODE and len(updates) >= FLUSH_EVERY:

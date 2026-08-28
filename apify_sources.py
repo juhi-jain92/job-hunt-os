@@ -1,7 +1,7 @@
 """
 apify_sources.py — Fetches jobs from two Apify actors and normalizes each
 into the same schema used by JSearch: {job_id, title, company, location,
-salary_text, url, description, source, posted_at, remote}.
+url, description, source, posted_at}.
 """
 
 import hashlib
@@ -9,7 +9,6 @@ import os
 import sys
 import requests
 from dotenv import load_dotenv
-from config.filters import detect_remote
 
 load_dotenv()
 APIFY_TOKEN = os.getenv("APIFY_TOKEN")
@@ -78,8 +77,6 @@ def fetch_vc_portfolio_jobs() -> list:
             "title":       vc_title,
             "company":     item.get("company", ""),
             "location":    vc_loc,
-            "remote":      detect_remote(vc_title, vc_loc, ""),
-            "salary_text": item.get("salary") or None,
             "url":         apply_url,
             "description": "",  # not in this actor's output
             "source":      "a16z/VC",
@@ -114,17 +111,6 @@ def fetch_wellfound_jobs() -> list:
         locs     = item.get("locationNames") or []
         location = ", ".join(locs)
 
-        # Salary: actor gives separate min/max/currency fields
-        lo       = item.get("salaryMin")
-        hi       = item.get("salaryMax")
-        currency = item.get("salaryCurrency") or "USD"
-        if lo and hi:
-            salary_text = f"${lo:,.0f}–${hi:,.0f} {currency}"
-        elif lo or hi:
-            salary_text = f"${(lo or hi):,.0f} {currency}"
-        else:
-            salary_text = None
-
         native_id = item.get("id")
         wf_title  = item.get("title", "")
         wf_desc   = item.get("description", "")
@@ -133,8 +119,6 @@ def fetch_wellfound_jobs() -> list:
             "title":       wf_title,
             "company":     item.get("companyName", ""),
             "location":    location,
-            "remote":      detect_remote(wf_title, location, wf_desc),
-            "salary_text": salary_text,
             "url":         item.get("detailUrl") or item.get("portalUrl", ""),
             "description": wf_desc,
             "source":      "Wellfound",
