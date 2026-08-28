@@ -47,9 +47,9 @@ _search_config = json.loads(open(os.path.join(BASE, "config", "search_config.jso
 _scorer_cfg    = _search_config.get("scorer_settings", {})
 MODEL          = _scorer_cfg.get("model",  "claude-sonnet-5")
 EFFORT         = _scorer_cfg.get("effort", "low")
-rubric_text      = _load("config/job_fit_eval_framework.md", "eval framework")
-resume_ai        = _load("resume/resume_ai.md",              "AI resume")
-resume_adtech    = _load("resume/resume_adtech.md",          "Adtech resume")
+# The rubric and the resume files used to be loaded here and passed into the
+# prompt. Both were cut to save ~2,500 tokens per call: the rubric logic now
+# lives in JSON_SCHEMA, and the resume is distilled into RESUME_SECTION below.
 
 # Guardrails: load from file if it exists, otherwise use inline version
 _guardrails_file = _load("guardrails/guardrails.md", "guardrails file")
@@ -238,18 +238,32 @@ def _call_claude(prompt: str) -> Optional[dict]:
     Makes one Claude API call and parses the JSON response.
     Returns the parsed dict, or raises ValueError/APIError on failure.
     """
+    # Thinking blocks are billed against max_tokens, so the old 500-token
+    # ceiling could leave the JSON truncated mid-object. Scored output is
+    # ~250 tokens; the rest is headroom for reasoning.
     msg = client.messages.create(
         model=MODEL,
-        max_tokens=500,
+        max_tokens=2000,
         system=GUARDRAILS,
         messages=[{"role": "user", "content": prompt}],
         output_config={"effort": EFFORT},
-        timeout=30,
+        timeout=60,
     )
-    raw = msg.content[0].text.strip()
+
+    # The response may open with a thinking block, so index 0 is not
+    # necessarily the answer. Take the first actual text block.
+    raw = ""
+    for block in msg.content:
+        if getattr(block, "type", None) == "text" or hasattr(block, "text"):
+            if getattr(block, "type", None) == "thinking":
+                continue
+            raw = block.text.strip()
+            if raw:
+                break
 
     if not raw:
-        raise ValueError("Claude returned an empty response")
+        kinds = ", ".join(getattr(b, "type", "?") for b in msg.content) or "none"
+        raise ValueError(f"No text block in response (blocks: {kinds})")
 
     # Strip markdown code fences if Claude included them despite instructions
     if raw.startswith("```"):
@@ -333,6 +347,43 @@ to_score = [
     and not str(r.get("adtech_score", "")).strip()
     and r.get("status", "").lower() not in USER_OWNED_STATUSES
 ]
+
+
+def _is_scorable(row: dict) -> bool:
+    """
+    A row with no id, no title, or no description has nothing to score.
+    Sending it anyway costs a live API call to be told it scores zero.
+    """
+    return bool(
+        str(row.get("job_id", "")).strip()
+        and str(row.get("title", "")).strip()
+        and len(str(row.get("description", "")).strip()) >= 100
+    )
+
+
+_before_blank = len(to_score)
+blank_rows = [r for r in to_score if not _is_scorable(r)]
+to_score    = [r for r in to_score if _is_scorable(r)]
+
+if blank_rows and (PREVIEW_MODE or ESTIMATE_MODE):
+    print(f"  Ignoring {len(blank_rows)} row(s) with no id, title, or description.")
+elif blank_rows:
+    print(f"  Skipping {len(blank_rows)} row(s) with no id, title, or description "
+          f"— leftovers from an earlier sheet.")
+    # Mark them so they never come back around on the next run.
+    sheets.batch_write_scores(sheet, [
+        {
+            "row_num": r["_row_num"],
+            "ai_score": 0,
+            "adtech_score": 0,
+            "match_flag": "LOW MATCH",
+            "recommended_track": "Skip | EMPTY ROW",
+            "notes": "No job data on this row — not sent to the model.",
+            "status": "low match",
+            "write_status": True,
+        }
+        for r in blank_rows
+    ])
 
 if PREVIEW_MODE:
     to_score = to_score[:PREVIEW_LIMIT]
