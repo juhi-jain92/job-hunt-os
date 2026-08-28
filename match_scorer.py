@@ -542,10 +542,34 @@ def main():
             continue
 
         # ── Map Claude output → sheet columns ──
-        total  = result.get("total_score", 0)
-        track  = result.get("track", "LOW MATCH")
-        tier   = result.get("tier", "Skip")
-        skip   = result.get("hard_skip", True)
+        # The model judges the four dimension scores and the qualitative
+        # hard-skip reasons; everything derivable from those is computed
+        # here. An A/B run showed the model mislabels the tier for its own
+        # total ~1/3 of the time at low effort — and referral_match.py
+        # reads the tier to decide what counts as 7+, so a mislabel
+        # silently drops a qualifying role from the referral lane.
+        domain = result.get("domain_score", 0)
+        ai_r   = result.get("ai_readiness_score", 0)
+        skills = result.get("skills_score", 0)
+        level  = result.get("level_score", 0)
+        total  = domain + ai_r + skills + level
+
+        tier = ("Tier 1" if total >= 9 else
+                "Tier 2" if total >= 7 else
+                "Tier 3" if total >= 5 else "Skip")
+
+        if domain >= 2 and ai_r >= 2:
+            track = "DUAL"
+        elif ai_r == 3:
+            track = "AI"
+        elif domain == 3:
+            track = "ADTECH"
+        else:
+            track = "LOW MATCH"
+
+        # The model's hard_skip carries the judgment calls (salary under
+        # floor, sales role, agency); the arithmetic part is enforced here.
+        skip   = bool(result.get("hard_skip", True)) or total <= 6
         reason = result.get("reason", "")
         resume = result.get("recommended_resume", "B")
 
@@ -564,7 +588,7 @@ def main():
 
         updates.append({
             "row_num":           row["_row_num"],
-            "ai_score":          result.get("ai_score", 0),
+            "ai_score":          ai_r,   # = ai_readiness_score by definition
             "adtech_score":      result.get("adtech_score", 0),
             "match_flag":        match_flag,
             "recommended_track": recommended_track,
