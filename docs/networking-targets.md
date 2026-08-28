@@ -36,7 +36,7 @@ product hire here gets both halves of her profile):
 
 | Company | Note |
 |---|---|
-| **Moloco** | Commerce media + performance ML. **10 open PM roles right now**, incl. *Director of PM, Ads Quality & Performance* — she built inventory-quality ML; and *GPM, Dynamic Product Ads*. Bigger company, but the hiring signal is the strongest on this list |
+| ~~Moloco~~ | **BLOCKED** per Juhi — never surface, enforced in code via `blocked_companies` |
 | Walmart Connect (Vibe) | Bought Vibe.co for $1.4B in Jun 2026 — integrating self-serve CTV into retail media; integration-era teams hire |
 | Instacart Ads | Already in the discovery target list; ads org ~14 open roles |
 | Criteo | Retail media at scale; commerce audiences |
@@ -86,15 +86,17 @@ home-screen monetization ($16M ARR), supply-demand matching, IVT filtering."
 **Who:** founders (Regina Ye, CEO) or head of eng; HM-direct with a product
 observation, per the decision flow.
 
-### 4 · Moloco — the hiring-signal play
-Performance-ML ads platform expanded into **Moloco Commerce Media** (retail media
-for marketplaces). **10 PM openings today** including *Director of PM, Ads Quality
-& Performance — Commerce Media* and *GPM, Dynamic Product Ads*.
-**Her angle:** Ads Quality & Performance is a described-by-the-JD version of her
-inventory-quality ML ($4M, +20% margin) and bid-propensity work. This one goes
-through the **referral lane** too — first-degree contacts at Moloco are likely
-(check after CSV ingest); pair the application with a warm path.
-**Who:** the hiring Director/VP for Commerce Media product.
+### 4 · Roku — the home-turf platform
+The largest independent CTV platform: OS, ad platform, and first-party viewership
+data. Her River OS + LG Ads background is a direct competitor-experience story —
+platform monetization, home-screen inventory, identity, measurement.
+**Her angle:** "I built and monetized the competing TV OS" is an opener nobody
+else in the pipeline can use. Seattle-friendly presence.
+**Who:** Ads product or Platform monetization PM leadership.
+
+Also added to the manual list per Juhi: **LawnStarter** (marketplace —
+supply-demand, conversion economics transfer cleanly) and **Tereina** (stealth
+fintech). Moloco is blocked everywhere by config.
 
 ### 5 · Kevel — the ops-enablement match
 API-native **Retail Media Cloud**; 2026 momentum: Adobe AEP real-time integration,

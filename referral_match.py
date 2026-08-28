@@ -31,7 +31,7 @@ from datetime import datetime
 
 import sheets
 from linkedin_urls import people_search_url
-from normalize import match_company, norm_company
+from normalize import is_blocked, match_company, norm_company
 
 BASE = os.path.dirname(__file__)
 
@@ -141,10 +141,10 @@ def main():
     print("  Reading contacts ...")
     contact_rows = sheets.get_all_rows_with_numbers(sheets.get_contacts_tab())
     if not contact_rows:
-        sys.exit(
-            "\nERROR: The Contacts tab is empty.\n"
-            "  Run: python3 contacts_ingest.py"
-        )
+        # Exit 0 so a scheduled run before the CSVs are ingested is a quiet
+        # no-op, not a red X on the workflow.
+        print("\n  Contacts tab is empty — run contacts_ingest.py first. Nothing to match.")
+        return
     index = load_contacts_by_company(contact_rows)
     print(f"    {len(contact_rows)} contacts across {len(index)} companies")
 
@@ -154,6 +154,7 @@ def main():
     eligible = [
         r for r in job_rows
         if qualifies(r, MIN_SCORE)
+        and not is_blocked(r.get("company", ""))
         and (r.get("status", "") or "").lower() not in USER_OWNED_JOB_STATUSES
     ]
     if FRESH_ONLY:

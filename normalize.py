@@ -132,3 +132,25 @@ def seniority_hint(title: str) -> str:
     if any(_has_term(t, term) for term in MANAGER_TERMS):
         return "manager"
     return "ic"
+
+
+# ── Company blocklist ─────────────────────────────────────────────────────────
+
+import json as _json
+import os as _os
+
+_TARGETS = _os.path.join(_os.path.dirname(__file__), "config", "target_companies.json")
+
+def _blocked() -> set:
+    try:
+        raw = _json.load(open(_TARGETS)).get("blocked_companies", [])
+    except (FileNotFoundError, _json.JSONDecodeError):
+        raw = []
+    return {norm_company(c) for c in raw if c}
+
+BLOCKED = _blocked()
+
+
+def is_blocked(company: str) -> bool:
+    """True for companies Juhi never wants surfaced, matched on normalized name."""
+    return norm_company(company) in BLOCKED

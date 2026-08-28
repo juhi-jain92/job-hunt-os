@@ -135,7 +135,11 @@ for source_job_list in [
 
 # ---------- 5. Pre-filter — title relevance ----------
 
+from normalize import is_blocked
+
 def is_relevant(job: dict) -> bool:
+    if is_blocked(job.get("company", "")):
+        return False
     title = (job.get("title") or "").strip().lower()
     return any(term in title for term in TITLE_TERMS)
 

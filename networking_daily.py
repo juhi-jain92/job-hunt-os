@@ -37,7 +37,7 @@ from datetime import datetime, timedelta
 import sheets
 from contact_extract import extract, hunter_domain_search
 from linkedin_urls import people_search_url, research_links, school_search_url
-from normalize import norm_company
+from normalize import is_blocked, norm_company
 
 BASE = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE, "config", "search_config.json")
@@ -122,6 +122,15 @@ def load_slugs() -> list:
         return []
 
 
+def load_manual_targets() -> list:
+    """Pre-qualified companies (mostly not on Greenhouse) — see target_companies.json."""
+    try:
+        with open(TARGETS_PATH, encoding="utf-8") as fh:
+            return json.load(fh).get("manual_targets", [])
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
 def classify(open_roles: int) -> tuple:
     for floor, label, cost in SIZE_BANDS:
         if open_roles >= floor:
@@ -148,9 +157,29 @@ def build_pool(targets_rows: list, slugs: list) -> list:
     pool = []
     seen = set()
 
+    # Manual targets outrank everything: they are pre-qualified by research,
+    # and most have no public board for the signal-based scoring below.
+    for t in load_manual_targets():
+        key = norm_company(t.get("company", ""))
+        if not key or is_blocked(key):
+            continue
+        seen.add(key)
+        cooldown = None
+        for r in targets_rows:
+            if r.get("company_norm") == key:
+                cooldown = days_since(r.get("last_recommended_on", ""))
+                break
+        if cooldown is not None and cooldown < COOLDOWN_DAYS:
+            continue
+        pool.append({
+            "company": t.get("company", ""), "company_norm": key,
+            "slug": key.replace(" ", ""), "score": 10, "manual": True,
+            "source": "manual_targets", "row_num": None,
+        })
+
     for r in targets_rows:
         key = r.get("company_norm", "")
-        if not key:
+        if not key or key in seen or is_blocked(key):
             continue
         seen.add(key)
 
@@ -184,7 +213,7 @@ def build_pool(targets_rows: list, slugs: list) -> list:
     # Untouched companies from the curated list, so the pool never runs dry.
     for slug in slugs:
         key = norm_company(slug)
-        if key in seen:
+        if key in seen or is_blocked(key):
             continue
         pool.append({
             "company": slug.capitalize(),
@@ -236,8 +265,13 @@ def main():
 
         gh = info.get("greenhouse", {})
         if not gh.get("available"):
-            print(f"    skipped — no public board ({gh.get('reason')})\n")
-            continue
+            if candidate.get("manual"):
+                # Pre-qualified by research — no board needed. One slot,
+                # company-wide, LinkedIn search links as the route.
+                gh = {"available": True, "open_roles": 0, "product_lines": []}
+            else:
+                print(f"    skipped — no public board ({gh.get('reason')})\n")
+                continue
 
         size, cost = classify(gh.get("open_roles", 0))
         if used + cost > SLOTS:

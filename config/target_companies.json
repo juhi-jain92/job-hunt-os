@@ -1,6 +1,5 @@
 {
   "greenhouse_slugs": [
-    "moloco",
     "applovin",
     "reddit",
     "pinterest",
@@ -56,5 +55,40 @@
       "thumbtack",
       "uber"
     ]
-  }
+  },
+  "blocked_companies": [
+    "moloco"
+  ],
+  "_blocked_note": "Never surface these companies anywhere \u2014 discovery, scoring, referral, networking. Matched on normalized company name.",
+  "manual_targets": [
+    {
+      "company": "Scope3",
+      "note": "agentic advertising platform \u2014 thesis match"
+    },
+    {
+      "company": "tvScientific",
+      "note": "outcome-based CTV \u2014 attribution match"
+    },
+    {
+      "company": "Kevel",
+      "note": "retail media cloud \u2014 ops-enablement match"
+    },
+    {
+      "company": "Chalice",
+      "note": "custom bidding AI \u2014 decisioning match"
+    },
+    {
+      "company": "LawnStarter",
+      "note": "marketplace \u2014 supply-demand fits"
+    },
+    {
+      "company": "Roku",
+      "note": "CTV platform + ads \u2014 home-turf domain"
+    },
+    {
+      "company": "Tereina",
+      "note": "stealth fintech startup (per Juhi)"
+    }
+  ],
+  "_manual_targets_note": "Pre-qualified networking slots. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal."
 }
