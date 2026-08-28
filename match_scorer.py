@@ -334,246 +334,257 @@ if LIMIT_MODE:
     except (IndexError, ValueError):
         LIMIT_COUNT = 10
 
-print("\nOpening sheet ...")
-sheet = sheets.open_or_create_sheet()
-
-print("Reading rows ...")
-all_rows = sheets.get_all_rows_with_numbers(sheet)
-
-# Filter to rows that need scoring
-to_score = [
-    r for r in all_rows
-    if not str(r.get("ai_score", "")).strip()
-    and not str(r.get("adtech_score", "")).strip()
-    and r.get("status", "").lower() not in USER_OWNED_STATUSES
-]
-
-
-def _is_scorable(row: dict) -> bool:
+def main():
     """
-    A row with no id, no title, or no description has nothing to score.
-    Sending it anyway costs a live API call to be told it scores zero.
+    Everything below touches the live sheet and spends real money, so it
+    must not run on import. Without this guard, `import match_scorer` from
+    a test or an experiment starts a full scoring pass against the sheet.
     """
-    return bool(
-        str(row.get("job_id", "")).strip()
-        and str(row.get("title", "")).strip()
-        and len(str(row.get("description", "")).strip()) >= 100
-    )
+    print("\nOpening sheet ...")
+    sheet = sheets.open_or_create_sheet()
+
+    print("Reading rows ...")
+    all_rows = sheets.get_all_rows_with_numbers(sheet)
+
+    # Filter to rows that need scoring
+    to_score = [
+        r for r in all_rows
+        if not str(r.get("ai_score", "")).strip()
+        and not str(r.get("adtech_score", "")).strip()
+        and r.get("status", "").lower() not in USER_OWNED_STATUSES
+    ]
 
 
-_before_blank = len(to_score)
-blank_rows = [r for r in to_score if not _is_scorable(r)]
-to_score    = [r for r in to_score if _is_scorable(r)]
-
-if blank_rows and (PREVIEW_MODE or ESTIMATE_MODE):
-    print(f"  Ignoring {len(blank_rows)} row(s) with no id, title, or description.")
-elif blank_rows:
-    print(f"  Skipping {len(blank_rows)} row(s) with no id, title, or description "
-          f"— leftovers from an earlier sheet.")
-    # Mark them so they never come back around on the next run.
-    sheets.batch_write_scores(sheet, [
-        {
-            "row_num": r["_row_num"],
-            "ai_score": 0,
-            "adtech_score": 0,
-            "match_flag": "LOW MATCH",
-            "recommended_track": "Skip | EMPTY ROW",
-            "notes": "No job data on this row — not sent to the model.",
-            "status": "low match",
-            "write_status": True,
-        }
-        for r in blank_rows
-    ])
-
-if PREVIEW_MODE:
-    to_score = to_score[:PREVIEW_LIMIT]
-    print(f"  PREVIEW MODE — scoring {len(to_score)} row(s), nothing will be written to the sheet.\n")
-elif LIMIT_MODE:
-    to_score = to_score[:LIMIT_COUNT]
-    print(f"  LIMIT MODE — scoring first {len(to_score)} rows only, will write to sheet.\n")
-else:
-    print(f"  {len(all_rows)} total rows | {len(to_score)} unscored and eligible\n")
-
-if ESTIMATE_MODE:
-    # Sonnet 4.6 pricing (per 1M tokens)
-    # Read from config so the estimate tracks whatever model is actually set.
-    INPUT_PRICE_PER_M  = _scorer_cfg.get("price_input_per_m",  2.00)
-    OUTPUT_PRICE_PER_M = _scorer_cfg.get("price_output_per_m", 10.00)
-    AVG_OUTPUT_TOKENS  = 250  # typical JSON response
-
-    # Sample 10 evenly spaced rows to estimate average prompt size
-    sample_size = min(10, len(to_score))
-    step = max(1, len(to_score) // sample_size)
-    sample = [to_score[i] for i in range(0, len(to_score), step)][:sample_size]
-
-    total_sample_tokens = 0
-    for row in sample:
-        prompt = build_prompt(row)
-        resp = client.messages.count_tokens(
-            model=MODEL,
-            system=GUARDRAILS,
-            messages=[{"role": "user", "content": prompt}],
+    def _is_scorable(row: dict) -> bool:
+        """
+        A row with no id, no title, or no description has nothing to score.
+        Sending it anyway costs a live API call to be told it scores zero.
+        """
+        return bool(
+            str(row.get("job_id", "")).strip()
+            and str(row.get("title", "")).strip()
+            and len(str(row.get("description", "")).strip()) >= 100
         )
-        total_sample_tokens += resp.input_tokens
 
-    avg_input_tokens = total_sample_tokens // len(sample)
-    n = len(to_score)
 
-    total_input  = avg_input_tokens * n
-    total_output = AVG_OUTPUT_TOKENS * n
-    cost_input   = total_input  / 1_000_000 * INPUT_PRICE_PER_M
-    cost_output  = total_output / 1_000_000 * OUTPUT_PRICE_PER_M
-    total_cost   = cost_input + cost_output
-    est_minutes  = (n * 10) // 60  # ~10s per job
+    _before_blank = len(to_score)
+    blank_rows = [r for r in to_score if not _is_scorable(r)]
+    to_score    = [r for r in to_score if _is_scorable(r)]
 
-    print(f"""
-{'='*50}
-COST ESTIMATE — match_scorer.py ({MODEL}, effort={EFFORT})
-{'='*50}
-Unscored jobs:        {n}
-Sample size:          {len(sample)} rows
-Avg input tokens:     {avg_input_tokens:,} per call
-Avg output tokens:    {AVG_OUTPUT_TOKENS} per call (estimated)
-
-Total input tokens:   {total_input:,}
-Total output tokens:  {total_output:,}
-
-Input cost  (${INPUT_PRICE_PER_M:g}/M):   ${cost_input:.2f}
-Output cost (${OUTPUT_PRICE_PER_M:g}/M):  ${cost_output:.2f}
-TOTAL COST:           ${total_cost:.2f}
-
-Est. runtime:         ~{est_minutes} min at ~10s/job
-{'='*50}
-""")
-    sys.exit(0)
-
-if not to_score:
-    print("Nothing to score. Exiting.")
-    sys.exit(0)
-
-# ── 5. Score each job ─────────────────────────────────────────────────────────
-
-updates   = []
-failed    = []
-counters  = Counter()
-FLUSH_EVERY = 25  # write to sheet every N scored jobs to preserve progress
-
-for i, row in enumerate(to_score, 1):
-    job_id  = row.get("job_id", "")
-    title   = row.get("title", "")
-    company = row.get("company", "")
-    print(f"{'='*55}")
-    print(f"[{i}/{len(to_score)}] {datetime.now().strftime('%H:%M:%S')}  {title} @ {company}")
-    print(f"  job_id: {job_id}")
-    print(f"  description chars: {len(row.get('description', '') or '')}")
-
-    try:
-        result = score_job(row)
-    except RuntimeError as e:
-        if str(e) == "CREDIT_EXHAUSTED":
-            print(f"\n[FATAL] Anthropic credit balance exhausted.", file=sys.stderr)
-            print(f"  Top up at console.anthropic.com → Plans & Billing, then re-run.", file=sys.stderr)
-            if updates and not PREVIEW_MODE:
-                print(f"  Writing {len(updates)} scores collected so far ...")
-                sheets.batch_write_scores(sheet, updates)
-                print(f"  Saved. Re-run after topping up — scored rows will be skipped automatically.")
-            sys.exit(1)
-        raise
-
-    if result is None:
-        failed.append(job_id)
-        counters["errors"] += 1
-        time.sleep(CALL_DELAY_SECONDS)
-        continue
+    if blank_rows and (PREVIEW_MODE or ESTIMATE_MODE):
+        print(f"  Ignoring {len(blank_rows)} row(s) with no id, title, or description.")
+    elif blank_rows:
+        print(f"  Skipping {len(blank_rows)} row(s) with no id, title, or description "
+              f"— leftovers from an earlier sheet.")
+        # Mark them so they never come back around on the next run.
+        sheets.batch_write_scores(sheet, [
+            {
+                "row_num": r["_row_num"],
+                "ai_score": 0,
+                "adtech_score": 0,
+                "match_flag": "LOW MATCH",
+                "recommended_track": "Skip | EMPTY ROW",
+                "notes": "No job data on this row — not sent to the model.",
+                "status": "low match",
+                "write_status": True,
+            }
+            for r in blank_rows
+        ])
 
     if PREVIEW_MODE:
-        # Print raw JSON and stop — do not collect for writing
-        print(f"\n  RAW JSON RESPONSE:")
-        print(json.dumps(result, indent=4))
-        time.sleep(CALL_DELAY_SECONDS)
-        continue
-
-    # ── Map Claude output → sheet columns ──
-    total  = result.get("total_score", 0)
-    track  = result.get("track", "LOW MATCH")
-    tier   = result.get("tier", "Skip")
-    skip   = result.get("hard_skip", True)
-    reason = result.get("reason", "")
-    resume = result.get("recommended_resume", "B")
-
-    match_flag        = track
-    recommended_track = f"{tier} | {track}"
-
-    if skip or tier == "Skip":
-        status = "low match"
-    elif tier in ("Tier 1", "Tier 2"):
-        status = "ready to apply"
+        to_score = to_score[:PREVIEW_LIMIT]
+        print(f"  PREVIEW MODE — scoring {len(to_score)} row(s), nothing will be written to the sheet.\n")
+    elif LIMIT_MODE:
+        to_score = to_score[:LIMIT_COUNT]
+        print(f"  LIMIT MODE — scoring first {len(to_score)} rows only, will write to sheet.\n")
     else:
-        status = "spray"
+        print(f"  {len(all_rows)} total rows | {len(to_score)} unscored and eligible\n")
 
-    current_status = str(row.get("status", "")).strip().lower()
-    write_status   = current_status in ("", "new")
+    if ESTIMATE_MODE:
+        # Sonnet 4.6 pricing (per 1M tokens)
+        # Read from config so the estimate tracks whatever model is actually set.
+        INPUT_PRICE_PER_M  = _scorer_cfg.get("price_input_per_m",  2.00)
+        OUTPUT_PRICE_PER_M = _scorer_cfg.get("price_output_per_m", 10.00)
+        AVG_OUTPUT_TOKENS  = 250  # typical JSON response
 
-    updates.append({
-        "row_num":           row["_row_num"],
-        "ai_score":          result.get("ai_score", 0),
-        "adtech_score":      result.get("adtech_score", 0),
-        "match_flag":        match_flag,
-        "recommended_track": recommended_track,
-        "notes":             reason,
-        "status":            status,
-        "write_status":      write_status,
-    })
+        # Sample 10 evenly spaced rows to estimate average prompt size
+        sample_size = min(10, len(to_score))
+        step = max(1, len(to_score) // sample_size)
+        sample = [to_score[i] for i in range(0, len(to_score), step)][:sample_size]
 
-    counters[tier]  += 1
-    counters[track] += 1
-    if skip:
-        counters["hard_skip"] += 1
+        total_sample_tokens = 0
+        for row in sample:
+            prompt = build_prompt(row)
+            resp = client.messages.count_tokens(
+                model=MODEL,
+                system=GUARDRAILS,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            total_sample_tokens += resp.input_tokens
 
-    print(f"    score={total}  tier={tier}  track={track}  resume={resume}  hard_skip={skip}")
-    time.sleep(CALL_DELAY_SECONDS)
+        avg_input_tokens = total_sample_tokens // len(sample)
+        n = len(to_score)
 
-    if not PREVIEW_MODE and len(updates) >= FLUSH_EVERY:
-        print(f"\n  [flush] Writing {len(updates)} scores to sheet ...")
+        total_input  = avg_input_tokens * n
+        total_output = AVG_OUTPUT_TOKENS * n
+        cost_input   = total_input  / 1_000_000 * INPUT_PRICE_PER_M
+        cost_output  = total_output / 1_000_000 * OUTPUT_PRICE_PER_M
+        total_cost   = cost_input + cost_output
+        est_minutes  = (n * 10) // 60  # ~10s per job
+
+        print(f"""
+    {'='*50}
+    COST ESTIMATE — match_scorer.py ({MODEL}, effort={EFFORT})
+    {'='*50}
+    Unscored jobs:        {n}
+    Sample size:          {len(sample)} rows
+    Avg input tokens:     {avg_input_tokens:,} per call
+    Avg output tokens:    {AVG_OUTPUT_TOKENS} per call (estimated)
+
+    Total input tokens:   {total_input:,}
+    Total output tokens:  {total_output:,}
+
+    Input cost  (${INPUT_PRICE_PER_M:g}/M):   ${cost_input:.2f}
+    Output cost (${OUTPUT_PRICE_PER_M:g}/M):  ${cost_output:.2f}
+    TOTAL COST:           ${total_cost:.2f}
+
+    Est. runtime:         ~{est_minutes} min at ~10s/job
+    {'='*50}
+    """)
+        sys.exit(0)
+
+    if not to_score:
+        print("Nothing to score. Exiting.")
+        sys.exit(0)
+
+    # ── 5. Score each job ─────────────────────────────────────────────────────────
+
+    updates   = []
+    failed    = []
+    counters  = Counter()
+    FLUSH_EVERY = 25  # write to sheet every N scored jobs to preserve progress
+
+    for i, row in enumerate(to_score, 1):
+        job_id  = row.get("job_id", "")
+        title   = row.get("title", "")
+        company = row.get("company", "")
+        print(f"{'='*55}")
+        print(f"[{i}/{len(to_score)}] {datetime.now().strftime('%H:%M:%S')}  {title} @ {company}")
+        print(f"  job_id: {job_id}")
+        print(f"  description chars: {len(row.get('description', '') or '')}")
+
+        try:
+            result = score_job(row)
+        except RuntimeError as e:
+            if str(e) == "CREDIT_EXHAUSTED":
+                print(f"\n[FATAL] Anthropic credit balance exhausted.", file=sys.stderr)
+                print(f"  Top up at console.anthropic.com → Plans & Billing, then re-run.", file=sys.stderr)
+                if updates and not PREVIEW_MODE:
+                    print(f"  Writing {len(updates)} scores collected so far ...")
+                    sheets.batch_write_scores(sheet, updates)
+                    print(f"  Saved. Re-run after topping up — scored rows will be skipped automatically.")
+                sys.exit(1)
+            raise
+
+        if result is None:
+            failed.append(job_id)
+            counters["errors"] += 1
+            time.sleep(CALL_DELAY_SECONDS)
+            continue
+
+        if PREVIEW_MODE:
+            # Print raw JSON and stop — do not collect for writing
+            print(f"\n  RAW JSON RESPONSE:")
+            print(json.dumps(result, indent=4))
+            time.sleep(CALL_DELAY_SECONDS)
+            continue
+
+        # ── Map Claude output → sheet columns ──
+        total  = result.get("total_score", 0)
+        track  = result.get("track", "LOW MATCH")
+        tier   = result.get("tier", "Skip")
+        skip   = result.get("hard_skip", True)
+        reason = result.get("reason", "")
+        resume = result.get("recommended_resume", "B")
+
+        match_flag        = track
+        recommended_track = f"{tier} | {track}"
+
+        if skip or tier == "Skip":
+            status = "low match"
+        elif tier in ("Tier 1", "Tier 2"):
+            status = "ready to apply"
+        else:
+            status = "spray"
+
+        current_status = str(row.get("status", "")).strip().lower()
+        write_status   = current_status in ("", "new")
+
+        updates.append({
+            "row_num":           row["_row_num"],
+            "ai_score":          result.get("ai_score", 0),
+            "adtech_score":      result.get("adtech_score", 0),
+            "match_flag":        match_flag,
+            "recommended_track": recommended_track,
+            "notes":             reason,
+            "status":            status,
+            "write_status":      write_status,
+        })
+
+        counters[tier]  += 1
+        counters[track] += 1
+        if skip:
+            counters["hard_skip"] += 1
+
+        print(f"    score={total}  tier={tier}  track={track}  resume={resume}  hard_skip={skip}")
+        time.sleep(CALL_DELAY_SECONDS)
+
+        if not PREVIEW_MODE and len(updates) >= FLUSH_EVERY:
+            print(f"\n  [flush] Writing {len(updates)} scores to sheet ...")
+            sheets.batch_write_scores(sheet, updates)
+            updates.clear()
+            print(f"  [flush] Done.\n")
+
+    # ── 6. Write all scores in one batch (skipped in preview mode) ───────────────
+
+    if PREVIEW_MODE:
+        print(f"\n{'='*55}")
+        print("PREVIEW COMPLETE — sheet unchanged. Run without --preview to write scores.")
+        sys.exit(0)
+
+    if updates:
+        print(f"\nWriting {len(updates)} score rows to sheet ...")
         sheets.batch_write_scores(sheet, updates)
-        updates.clear()
-        print(f"  [flush] Done.\n")
+        print("  Done.")
 
-# ── 6. Write all scores in one batch (skipped in preview mode) ───────────────
+    if failed:
+        print(f"\n  [warning] {len(failed)} job(s) failed and were skipped:")
+        for jid in failed:
+            print(f"    {jid}")
 
-if PREVIEW_MODE:
-    print(f"\n{'='*55}")
-    print("PREVIEW COMPLETE — sheet unchanged. Run without --preview to write scores.")
-    sys.exit(0)
+    # ── 7. Summary ────────────────────────────────────────────────────────────────
 
-if updates:
-    print(f"\nWriting {len(updates)} score rows to sheet ...")
-    sheets.batch_write_scores(sheet, updates)
-    print("  Done.")
+    scored = len(updates)
+    print(f"""
+    {'='*45}
+    SCORING COMPLETE
+    {'='*45}
+    Total scored:      {scored}
+    Tier 1:            {counters.get('Tier 1', 0)}
+    Tier 2:            {counters.get('Tier 2', 0)}
+    Tier 3:            {counters.get('Tier 3', 0)}
+    Skip / low match:  {counters.get('Skip', 0)}
+    Hard skips:        {counters.get('hard_skip', 0)}
+    ---
+    AI track:          {counters.get('AI', 0)}
+    ADTECH track:      {counters.get('ADTECH', 0)}
+    DUAL:              {counters.get('DUAL', 0)}
+    LOW MATCH:         {counters.get('LOW MATCH', 0)}
+    Errors:            {counters.get('errors', 0)}
+    {'='*45}
+    """)
 
-if failed:
-    print(f"\n  [warning] {len(failed)} job(s) failed and were skipped:")
-    for jid in failed:
-        print(f"    {jid}")
 
-# ── 7. Summary ────────────────────────────────────────────────────────────────
 
-scored = len(updates)
-print(f"""
-{'='*45}
-SCORING COMPLETE
-{'='*45}
-Total scored:      {scored}
-Tier 1:            {counters.get('Tier 1', 0)}
-Tier 2:            {counters.get('Tier 2', 0)}
-Tier 3:            {counters.get('Tier 3', 0)}
-Skip / low match:  {counters.get('Skip', 0)}
-Hard skips:        {counters.get('hard_skip', 0)}
----
-AI track:          {counters.get('AI', 0)}
-ADTECH track:      {counters.get('ADTECH', 0)}
-DUAL:              {counters.get('DUAL', 0)}
-LOW MATCH:         {counters.get('LOW MATCH', 0)}
-Errors:            {counters.get('errors', 0)}
-{'='*45}
-""")
+if __name__ == "__main__":
+    main()
