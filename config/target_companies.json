@@ -59,24 +59,36 @@
   "blocked_companies": [
     "moloco"
   ],
-  "_blocked_note": "Never surface these companies anywhere \u2014 discovery, scoring, referral, networking. Matched on normalized company name.",
+  "_blocked_note": "Never surface these companies anywhere — discovery, scoring, referral, networking. Matched on normalized company name.",
   "manual_targets": [
     {
       "company": "Scope3",
-      "note": "agentic advertising platform \u2014 thesis match"
+      "note": "agentic advertising platform — thesis match"
     },
     {
       "company": "tvScientific",
-      "note": "outcome-based CTV \u2014 attribution match"
+      "note": "outcome-based CTV — attribution match"
     },
     {
       "company": "Kevel",
-      "note": "retail media cloud \u2014 ops-enablement match"
+      "note": "retail media cloud — ops-enablement match"
     },
     {
       "company": "Chalice",
-      "note": "custom bidding AI \u2014 decisioning match"
+      "note": "custom bidding AI — decisioning match"
+    },
+    {
+      "company": "Topsort",
+      "note": "API-first auction + sponsored-ads infra for marketplaces; launched Sponsored Prompts, first agentic retail-media ad format (Apr 2026)"
+    },
+    {
+      "company": "Koddi",
+      "note": "commerce media platform; 2026 roadmap builds for agent-driven shopping journeys as the new storefront"
+    },
+    {
+      "company": "Olyzon",
+      "note": "$10M Series A (May 2026) for an agentic decisioning layer across CTV planning, activation and measurement"
     }
   ],
-  "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement \u2014 marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms."
+  "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement — marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms."
 }

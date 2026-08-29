@@ -18,7 +18,7 @@ product hire here gets both halves of her profile):
 |---|---|---|---|
 | 1 | **Scope3** | Agentic advertising platform (Brian O'Kelley, ex-AppNexus). Launched an AI agent platform for media buying in Mar 2026; partners incl. Amazon, Google, The Trade Desk | The company thesis *is* her resume: agentic workflows + programmatic. She's run both sides they're automating |
 | 2 | **tvScientific** | Outcome-based CTV DSP; $25.5M Series B; ties TV exposure to conversions via real-time attribution and incrementality | Her CTV + offline attribution + performance stack, at a company small enough for a PM to own a whole surface |
-| 3 | **Topsort** | API-first auction + sponsored-ads infra for marketplaces ($28.5M raised, Palo Alto). "Ad infrastructure the big marketplaces built internally, for everyone else" | She built exactly that internal infra at LG Ads: auctions, supply-demand, monetization 0-to-1. 11 open roles, no PM posted → HM-direct territory |
+| 3 | **Topsort** | API-first auction + sponsored-ads infra for marketplaces ($28.5M raised, Palo Alto). "Ad infrastructure the big marketplaces built internally, for everyone else" | She built exactly that internal infra at LG Ads: auctions, supply-demand, monetization 0-to-1. 11 open roles, no PM posted → HM-direct territory. Promoted to `manual_targets` 2026-08-29 after launching Sponsored Prompts (Apr 2026), the first agentic retail-media ad format |
 | 4 | **Kevel** | API-native Retail Media Cloud; 2026: Adobe AEP integration, ADvendio partnership for "agentic operations", Drum award for retail-media infrastructure | Ad-server, trafficking, forecasting, ops-enablement — her ad-server + Segment Portal + ops-automation work, one-to-one |
 | 5 | **Chalice Custom Algorithms** | Custom bidding/decisioning AI for agencies and brands | Bid-propensity and custom decisioning is literally her ML product work |
 
@@ -30,6 +30,7 @@ product hire here gets both halves of her profile):
 | Madhive | CTV DSP for local/broadcast; strong supply story |
 | Wurl (AppLovin) | CTV supply + AI content targeting |
 | Strategus | Managed CTV programmatic |
+| **Olyzon** (2026-08-29) | $10M Series A May 2026 for an agentic CTV decisioning layer — qualifies inventory, plans, activates into existing DSPs/SSPs, normalises measurement signals. Live with Publicis, WPP, OMD. Promoted to `manual_targets` |
 | iSpot / Innovid / Samba TV | TV measurement — her attribution + SOV reporting |
 
 **Tier C — retail/commerce media & marketplace infra:**
@@ -41,6 +42,8 @@ product hire here gets both halves of her profile):
 | Instacart Ads | Already in the discovery target list; ads org ~14 open roles |
 | Criteo | Retail media at scale; commerce audiences |
 | Rokt / AppLovin | Commerce transaction ads / performance ML at scale |
+| **Koddi** (2026-08-29) | Commerce media platform; 2026 product vision is explicitly built for agent-driven shopping journeys and the LLM conversational storefront. Promoted to `manual_targets` |
+| **Zitcha** (2026-08-29) | Retail media activation platform; hired ex-Meta/Walmart Steve Biddle as CCO (May 2026) — commercial scale-up phase, product hiring usually follows |
 
 **Tier D — creative-AI adjacency (weaker domain overlap, strong AI story):**
 Rembrand ($37.5M B, virtual product placement), FLORA ($42M A, creative AI),
