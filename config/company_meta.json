@@ -47,5 +47,26 @@
   },
   "pinterest": {
     "domain": "pinterest.com"
+  },
+  "scope3": {
+    "domain": "scope3.com"
+  },
+  "tvscientific": {
+    "domain": "tvscientific.com"
+  },
+  "kevel": {
+    "domain": "kevel.com"
+  },
+  "chalice": {
+    "domain": "chalice.ai"
+  },
+  "topsort": {
+    "domain": "topsort.com"
+  },
+  "koddi": {
+    "domain": "koddi.com"
+  },
+  "olyzon": {
+    "domain": "olyzon.com"
   }
 }
