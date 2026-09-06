@@ -154,6 +154,11 @@ def open_or_create_tab(tab_name: str, columns: list, rows: int = 2000):
         ws.update(values=[columns], range_name="A1", value_input_option="USER_ENTERED")
         print(f"  Wrote header row on '{tab_name}'")
     elif header == columns[: len(header)] and len(header) < len(columns):
+        # Tabs are created exactly as wide as their header, so the grid has
+        # to grow before the new header cells can be written.
+        missing = len(columns) - len(header)
+        if ws.col_count < len(columns):
+            ws.add_cols(len(columns) - ws.col_count)
         start = col_letter(len(header) + 1)
         ws.update(
             values=[columns[len(header):]],
