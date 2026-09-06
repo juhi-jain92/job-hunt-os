@@ -15,3 +15,6 @@ __pycache__/
 # Personal reference material moved out of active scope — never commit
 _archive/
 
+
+# PRD — personal job-search strategy (conversion rates, names); keep out of git
+docs/prd-referral-engine.md
