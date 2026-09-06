@@ -28,9 +28,10 @@ RAPIDAPI_KEY = os.getenv("RAPIDAPI_KEY")
 if not RAPIDAPI_KEY or RAPIDAPI_KEY == "your_key_here":
     sys.exit("ERROR: Set RAPIDAPI_KEY in your .env file.")
 
+# Apify is optional: the subscription ends 2026-10-05. Without a token the
+# Wellfound and VC-portfolio sources are skipped and discovery still runs on
+# JSearch + Greenhouse (~90% of volume).
 APIFY_TOKEN = os.getenv("APIFY_TOKEN")
-if not APIFY_TOKEN:
-    sys.exit("ERROR: Set APIFY_TOKEN in your .env file.")
 
 # ---------- 2. JSearch ----------
 JSEARCH_URL = "https://jsearch.p.rapidapi.com/search-v2"
@@ -122,11 +123,14 @@ print(f"\n{'='*50}")
 print("Apify sources")
 print('='*50)
 
-for source_job_list in [
-    apify_sources.fetch_vc_portfolio_jobs(),
-    apify_sources.fetch_wellfound_jobs(),
-    greenhouse_sources.fetch_greenhouse_jobs(),
-]:
+extra_sources = [greenhouse_sources.fetch_greenhouse_jobs()]
+if APIFY_TOKEN:
+    extra_sources = [apify_sources.fetch_vc_portfolio_jobs(),
+                     apify_sources.fetch_wellfound_jobs()] + extra_sources
+else:
+    print("  [Apify] no token — skipping Wellfound and VC portfolio sources")
+
+for source_job_list in extra_sources:
     for job in source_job_list:
         jid = job.get("job_id")
         if jid and jid not in seen_ids:
