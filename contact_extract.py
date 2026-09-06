@@ -195,10 +195,10 @@ def fetch_team_page(url: str) -> list:
     return found
 
 
-def hunter_domain_search(domain: str) -> dict:
+def hunter_domain_search(domain: str = "", company: str = "") -> dict:
     """
     The company's email pattern plus any public addresses Hunter has indexed.
-    Turns a name from a team page into a reachable address.
+    Accepts a domain or, when none is known, a company name (Hunter resolves it).
     """
     if not HUNTER_API_KEY:
         return {
@@ -209,7 +209,8 @@ def hunter_domain_search(domain: str) -> dict:
     try:
         resp = requests.get(
             HUNTER_DOMAIN,
-            params={"domain": domain, "api_key": HUNTER_API_KEY, "limit": 10},
+            params={**({"domain": domain} if domain else {"company": company}),
+                    "api_key": HUNTER_API_KEY, "limit": 10},
             timeout=TIMEOUT,
         )
         resp.raise_for_status()

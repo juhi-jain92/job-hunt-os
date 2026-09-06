@@ -14,7 +14,7 @@ every morning whether or not any app is open.
 Usage:
     python3 draft_notes.py --preview        pick rows, print drafts, write nothing
     python3 draft_notes.py                  draft up to 5 and write them
-    python3 draft_notes.py --n 3
+    python3 draft_notes.py --n 3            per lane
     python3 draft_notes.py --refresh-digest rebuild config/story_digest.json from
                                             resume/story-bank.md (local only)
 """
@@ -117,10 +117,11 @@ def pick_rows(n: int):
              and (r.get("status", "") or "").upper() == "PROSPECT"]
     net_c.sort(key=lambda r: (r.get("priority", "9"), r.get("due_date", "")))
 
-    picks = [("referral", r) for r in ref_c[:n]]
-    picks += [("networking", r) for r in net_c[: max(0, n - len(picks))]]
+    # n per lane: the referral block and the networking block are separate
+    # 20-minute sessions, so one lane must never starve the other.
+    picks = [("referral", r) for r in ref_c[:n]] + [("networking", r) for r in net_c[:n]]
     used_recently = recent_story_ids(ref + net)
-    return picks[:n], ref_ws, net_ws, used_recently
+    return picks, ref_ws, net_ws, used_recently
 
 
 def recent_story_ids(rows) -> set:
@@ -182,11 +183,19 @@ def system_blocks(digest: list) -> list:
 
 def target_brief(lane: str, r: dict) -> str:
     if lane == "referral":
-        who = re.sub(r'^=HYPERLINK\("[^"]*","(.*)"\)$', r"\1", r.get("referrer_1", "") or "")
-        return (f"LANE: warm referral ask\nCOMPANY: {r.get('company','')}\n"
+        unlink = lambda cell: re.sub(r'^=HYPERLINK\("[^"]*","(.*)"\)$', r"\1", cell or "")
+        who = unlink(r.get("referrer_1", ""))
+        cold = unlink(r.get("fallback_contact", ""))
+        if who:
+            lane_desc, contact, channel = "warm referral ask", who, "linkedin_dm"
+        elif cold and "@" in (r.get("fallback_contact", "") or ""):
+            lane_desc, contact, channel = "cold email to a product leader", cold, "email"
+        else:
+            lane_desc, contact, channel = "hiring-manager note", "unknown — write for the hiring manager", "linkedin_dm"
+        return (f"LANE: {lane_desc}\nCOMPANY: {r.get('company','')}\n"
                 f"ROLE: {r.get('title','')} (score {r.get('score','')})\n"
-                f"CONTACT: {who or 'no first-degree contact — write for the hiring manager'}\n"
-                f"CHANNEL: linkedin_dm\nSCORER NOTES: {(r.get('notes','') or '')[:300]}")
+                f"CONTACT: {contact}\nCHANNEL: {channel}\n"
+                f"SCORER NOTES: {(r.get('notes','') or '')[:300]}")
     return (f"LANE: cold networking\nCOMPANY: {r.get('company_display','')}\n"
             f"CONTACT: {r.get('contact_name','')} — {(r.get('notes','') or '')[:120]}\n"
             f"CHANNEL: {r.get('channel','')}\nJOB OPEN: {r.get('job_open','N')}")

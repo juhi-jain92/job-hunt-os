@@ -1,5 +1,5 @@
 """
-today.py — The only view Juhi opens: at most 5 rows, each with a draft in hand.
+today.py — The only view Juhi opens: up to 5 referral + 5 networking rows, each with a draft.
 
 Rows without a draft are not shown. Stale referrals are not shown. Sent rows
 are not shown. What's left is the send block: company, who, why them, the
@@ -77,7 +77,9 @@ def collect() -> list:
             "source_row": f"Networking:{r['_row_num']}", "_sort": (1, int(r.get("priority", "9") or 9)),
         })
     out.sort(key=lambda x: x["_sort"])
-    return out[:MAX_ROWS]
+    ref_rows = [o for o in out if o["lane"] == "referral"][:MAX_ROWS]
+    net_rows = [o for o in out if o["lane"] == "networking"][:MAX_ROWS]
+    return ref_rows + net_rows
 
 
 def main():

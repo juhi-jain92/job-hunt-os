@@ -19,7 +19,7 @@ import sys
 import time
 
 SCORE_CAP = 100      # ~60 cents worst case; keeps a bad day from becoming a bad bill
-DRAFTS_PER_DAY = 5   # the send block is five rows; drafting more just piles up
+DRAFTS_PER_DAY = 5   # per lane: 5 referral + 5 networking
 
 STAGES = [
     ("discover", ["job_search.py"],                      False),

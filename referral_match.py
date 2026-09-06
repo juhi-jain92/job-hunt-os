@@ -30,6 +30,7 @@ from collections import Counter, defaultdict
 from datetime import datetime
 
 import sheets
+from contact_extract import hunter_domain_search
 from linkedin_urls import people_search_url
 from normalize import is_blocked, match_company, norm_company
 
@@ -40,6 +41,33 @@ AUTO_FILL_CONFIDENCE = {"exact", "alias", "subset"}
 PEOPLE_SLOTS = 2
 
 USER_OWNED_JOB_STATUSES = {"applied", "rejected", "skipped"}
+
+# When nobody in either network is at the company, spend a Hunter credit to
+# find a product leader to cold-email — but only for fresh, strong roles, and
+# only a few a day: the free tier is 50 searches a month.
+HUNTER_COLD_MIN_SCORE = 8
+HUNTER_COLD_MAX_AGE_H = 14 * 24
+HUNTER_COLD_CAP = 3
+_PRODUCT_LEADER = ("head of product", "vp product", "vp, product", "vp of product",
+                   "chief product", "director of product", "director, product",
+                   "product director", "principal product", "staff product",
+                   "group product")
+
+
+def hunter_product_leader(company: str):
+    """Best product-leadership contact Hunter has for a company, or None."""
+    res = hunter_domain_search(company=company)
+    if not res.get("available"):
+        return None
+    ranked = sorted(
+        (e for e in res.get("emails", []) if e.get("name")),
+        key=lambda e: (0 if any(t in (e.get("position") or "").lower() for t in _PRODUCT_LEADER)
+                       else 1 if "product" in (e.get("position") or "").lower() else 2,
+                       -(e.get("confidence") or 0)),
+    )
+    if not ranked or "product" not in (ranked[0].get("position") or "").lower():
+        return None
+    return ranked[0]
 
 
 def _flag(name: str, default):
@@ -170,6 +198,7 @@ def main():
         return
 
     rows, counters = [], Counter()
+    hunter_budget = HUNTER_COLD_CAP
 
     for job in eligible:
         company = job.get("company", "")
@@ -219,10 +248,27 @@ def main():
             recruiters[0].get("linkedin_url", ""), recruiters[0].get("full_name", "")
         ) if recruiters else ""
 
-        # Nobody inside — hand over a search link instead of an empty cell.
-        row["fallback_contact"] = "" if people else sheets.hyperlink(
-            people_search_url(company), f"Find someone at {company}"
-        )
+        # Nobody inside — try Hunter for a product leader (fresh, strong roles
+        # only, capped per run), else hand over a search link.
+        row["fallback_contact"] = ""
+        if not people:
+            lead = None
+            fresh = (hours_old(job.get("posted_at", "")) or 1e9) <= HUNTER_COLD_MAX_AGE_H
+            if (hunter_budget > 0 and fresh and not PREVIEW_MODE
+                    and float(job.get("score", 0) or 0) >= HUNTER_COLD_MIN_SCORE):
+                hunter_budget -= 1
+                lead = hunter_product_leader(company)
+            if lead:
+                row["fallback_contact"] = sheets.hyperlink(
+                    f"mailto:{lead['email']}", f"{lead['name']} — {lead.get('position','')[:40]}"
+                )
+                row["notes"] = (f"Hunter: {lead['name']}, {lead.get('position','')[:50]} "
+                                f"(confidence {lead.get('confidence',0)}%). " + row["notes"])[:300]
+                counters["hunter cold lead"] += 1
+            else:
+                row["fallback_contact"] = sheets.hyperlink(
+                    people_search_url(company), f"Find someone at {company}"
+                )
 
         rows.append(row)
         if people:

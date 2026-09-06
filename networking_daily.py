@@ -53,7 +53,7 @@ try:
 except (FileNotFoundError, json.JSONDecodeError):
     pass
 
-DEFAULT_SLOTS = 3
+DEFAULT_SLOTS = 5
 COOLDOWN_DAYS = 14
 
 # Open-role count → how many slots the company costs and how many product
