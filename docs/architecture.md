@@ -1,128 +1,102 @@
 # Job Hunt OS — Architecture
 
-Three stages, one spreadsheet ("Job Hunt OS"), five tabs. Discovery fills the
-ledger, the scorer prices every row, the referral and networking lanes turn matches
-into drafted asks. **Nothing ever sends — every message leaves from Juhi's hands.**
-
-Status as of 2026-08-28: **fully operational.** 976 jobs discovered · 967 scored
-($5.50, 50 min) · 140 at 7+ · 131 rows in the Referrals tab, 67 with a warm path ·
-5,855 contacts ingested · Hunter live and verifying.
+One pipeline, one schedule, one command, five drafted rows out. Everything
+below exists to make the **Today** tab true every morning. Nothing sends.
 
 ```
-discovery ─▶ ledger ─▶ scorer ─▶ score ≥ 7 ─▶ referral match ─▶ Referrals tab ─┐
-                                                    ▲                          ├─▶ notes drafted ─▶ Juhi sends
-              contacts (2 CSVs) ────────────────────┘                          │
-              target research ─▶ networking daily ─▶ Networking tab ───────────┘
+python3 daily.py            (5:30am Pacific, GitHub Actions — or by hand)
+
+ discover ─▶ score ─▶ match ─▶ network ─▶ draft ─▶ track ─▶ today
+ Sheet1     Sheet1    Referrals Networking  both     both     Today
+ free       ≤100/run  free      Hunter      5/day    free     ≤5 rows
 ```
+
+Each stage is a standalone script with its own `--preview`/`--dry-run`; `daily.py`
+runs them in order, logs failures, keeps going, and ends with a one-screen summary.
+`--no-spend` skips the two stages that cost money.
+
+## Definition of working
+
+Five sends a day, from Juhi's hands, in a 20-minute block. Discovery and scoring
+are inputs. The Today tab is the only surface she opens; if it is empty, the
+pipeline failed, whatever the other tabs say.
 
 ## The tabs
 
-| Tab | One row per | Filled by | Juhi's columns |
+| Tab | One row per | Written by | Juhi touches |
 |---|---|---|---|
-| **sheet1** (ledger) | job | discovery + scorer | `status` (applied/rejected/…) |
-| **Contacts** | person in either network | contacts_ingest | `tie_type` corrections |
-| **Referrals** | role scoring 7+ | referral_match + note drafting | `note_to_send` (copy from), `sent_1/sent_2/sent_rec`, edits |
-| **Networking** | cold prospect | networking_daily + note drafting | `draft_body` (copy from), `personalized`, `status`→SENT, `sent_date` |
-| **Targets** | company | networking_daily bookkeeping | rarely touched |
+| **Today** | send-ready row (max 5) | today.py, regenerated each run | reads only |
+| Sheet1 | job | discover, score | `status` if she applies |
+| Contacts | person in either network | contacts_ingest (manual, on new export) | `tie_type` fixes |
+| Referrals | role scoring 7+ | match, draft, track | `sent_1/2/rec` |
+| Networking | cold prospect | network, draft, track | `status`, `sent_date`, `personalized` |
+| Targets | (bookkeeping, mostly unused) | — | never |
 
----
+## Stages
 
-## Step by step — a job's life, from posting to draft in hand
+**discover** — `job_search.py`. JSearch (18 queries), Greenhouse (38 boards,
+concurrent), Wellfound, VC portfolios → one schema → dedupe by `job_id` → title
+filter → append to Sheet1 anchored to the header table. Blocked companies dropped.
 
-**Step 1 · Discovery — 5:00am, automatic** (GitHub Actions; manual: `python3 job_search.py`)
-Fetches JSearch (18 queries), Greenhouse (38 boards, 8 concurrent), Wellfound, VC
-portfolios → normalizes to one schema → dedupes by `job_id` → title filter →
-appends to **sheet1** with `status = new`, score blank. Blocked companies dropped
-here. ~6–10 min, free.
+**score** — `match_scorer.py --limit 100`. Sonnet 5 at effort low judges four
+dimensions + dealbreakers against the resume key details; Python sums the single
+0–10 `score`. Prompt-cached; ~0.6¢/job; the cap keeps a bad day from becoming a
+bad bill. Runs without the personal context store (defaults) so it works in CI.
 
-**Step 2 · Scoring — Juhi's trigger** (`caffeinate -dims python3 match_scorer.py`)
-Each unscored row: Sonnet 5 (effort low, prompt-cached) judges 4 dimensions +
-dealbreakers against the resume key details; Python sums them into **`score` 0–10**
-and writes score/status/notes to **sheet1**. Rows with no description are marked,
-not billed. ~3s and ~0.6¢ per job; resumable; `--estimate` first if unsure.
-*Not scheduled on purpose — it spends money, so it stays a deliberate action.*
+**match** — `referral_match.py`. Sheet1 rows with `score ≥ 7` × Contacts →
+Referrals, one row per role: two ranked referrer slots + recruiter (clickable
+names), title-filtered search link when nobody is inside. Fuzzy never auto-fills.
+Re-runs add only new roles.
 
-**Step 3 · Contacts — once, then refresh occasionally** (`python3 contacts_ingest.py`)
-Parses both LinkedIn exports from `data/connections/` → **Contacts** tab: company
-normalized, seniority from title, dormant ties inferred from tenure windows (ISB
-and DTU count). Re-running with a fresh export updates people in place.
+**network** — `networking_daily.py`. 3 company/team slots a day: manual targets
+first (config `manual_targets`, no board needed), then board-signal picks.
+Cooldown is real now — a company with prospect rows generated in the last 14
+days is skipped, so the same five no longer re-queue daily. Small company → 1–2
+product leaders only; big → ≥5 across product orgs. Hunter names ranked by
+title; uncertain emails verified, invalid ones dropped before the sheet.
 
-**Step 4 · Referral match — 9:00am, automatic** (manual: `python3 referral_match.py`)
-Every sheet1 row with `score ≥ 7` × Contacts → **Referrals** tab, one row per
-role: `first_degree_available`, two ranked referrer slots + a recruiter slot
-(clickable names), a title-filtered search link when nobody's inside. Fuzzy company
-matches never auto-fill. Re-runs only add new roles — sent rows untouched.
+**draft** — `draft_notes.py --n 5`. Picks up to 5 undrafted rows (warm referrals
+by score, then named prospects). For each: 2–3 web searches for a fresh hook,
+one story from the committed `config/story_digest.json` (rotation: never a
+story used in the last 7 days, tracked via `story_id`/`drafted_on` columns),
+4 bullets. Python validates before writing: hook present, ≥4 bullets, a
+verbatim metric from the story's impact line, ≤280 words (≤280 chars for
+connection requests). Invalid → one retry → left blank for a human. Writes
+`note_to_send` / `draft_body` + `personalization_hook`. ~6¢ a draft.
 
-**Step 5 · Networking queue — 9:00am, automatic** (manual: `python3 networking_daily.py`)
-Picks 5 company/team slots: manual targets first (Scope3, tvScientific, Kevel,
-Chalice — no job posting required), then board-signal picks; big companies split
-into product orgs; 14-day cooldown. Per company: **small → 1–2 product leaders only
-(VP/Dir/Sr Dir/Principal/Staff/GPM of Product); big → ≥5 across lines.** Names from
-Hunter, ranked by title; uncertain emails verified, invalid ones dropped before
-they reach the sheet. Rows land in **Networking** as PROSPECT with `job_open` Y/N.
+**track** — `outreach_tracker.py`. `followup_due` = earliest send + 7d;
+unanswered flagged, answered cleared; connect requests over 15/week HELD;
+sends without the personalization tick reported; **referrals posted 14+ days
+ago and never chased are marked `stale`** and vanish from view (never deleted).
 
-**Step 6 · Research + note drafting — 9:15am, automatic** (scheduled Claude session;
-manual: "write the note for X")
-Finds 5–10 new target companies by the criteria (supply-demand, auctions,
-conversion economics, attribution, ops enablement — open roles preferred, not
-required; adds the best 2–3 to manual targets). Then for each queued row with an
-empty draft, follows the `networking-note` skill: their product → fresh
-observation → one story-bank story with a verbatim metric → the ask. 4 bullets.
-Writes into **Referrals.`note_to_send`** / **Networking.`draft_body`**, hook in
-`personalization_hook`. Runs while the desktop app is open; catches up on launch.
-
-**Step 7 · The send block — Juhi, ~20 min/day**
-Open Referrals (sort by `first_degree_available`) and Networking (today's
-`due_date`). Read the draft, personalize the last 10%, send from your own
-browser/email. Then mark it: Referrals → date into `sent_1`/`sent_2`/`sent_rec`;
-Networking → `status` SENT, `sent_date`, tick `personalized`. Telling Claude
-"note sent to X" does the bookkeeping and bumps the story's use count.
-
-**Step 8 · Follow-ups — with the 9am run** (manual: `python3 outreach_tracker.py`)
-`followup_due` = earliest send + 7 days; unanswered sends flagged, answered ones
-cleared; queued connection requests beyond 15/week put on HELD; sends without the
-personalization tick reported. DMs and email are uncapped — only new connection
-requests count.
-
-## What runs when
-
-| Time | What | Where |
-|---|---|---|
-| 5:00am | discovery | GitHub Actions |
-| 9:00am | referral match + networking queue + follow-ups | GitHub Actions |
-| 9:15am | target research + note drafting | scheduled Claude session (app open) |
-| Juhi's call | scoring (~$0.006/job) | her terminal |
-| Juhi's block | personalize + send + mark | her browser |
+**today** — `today.py`. Rebuilds the Today tab: drafted, not stale, not sent,
+max 5, warm referrals first. Prints the same to the terminal.
 
 ## Costs
 
-Fixed: $0 (all free tiers). Scoring: ~$5.50 per ~1,000-job backfill, ~25¢/day
-incremental. Hunter: free plan (50 searches + 100 verifications/mo) covers ~2 weeks
-of cadence; Starter $49/mo only for months of active cold email. Research and note
-drafting: subscription, no API spend.
+~50¢/day all-in (scoring of ~40 new roles + 5 drafts with web search). Fixed
+costs $0: Hunter free tier (50 searches + 100 verifications/month) covers the
+3-company cadence; upgrade only if it runs dry.
 
 ## Guardrails
 
-Human sends everything · no automation against LinkedIn · 15 connection
-requests/week enforced · fuzzy matches never auto-fill · every draft needs a
-target-specific hook · story rotation (never the same story twice in a week) ·
-blocked companies (Moloco) surface nowhere · scored rows and sent rows are never
-overwritten by any script.
+Human sends everything · no automation against LinkedIn (URL generation and
+LinkedIn's own export only) · 15 connection requests/week · fuzzy matches never
+auto-fill · every draft needs a target-specific hook · story rotation · blocked
+companies (`config/target_companies.json → blocked_companies`) surface nowhere ·
+scored rows and sent rows are never overwritten.
 
-## Still missing / known gaps
+## Manual, occasional
 
-1. **HUNTER_API_KEY as a GitHub secret** — until Juhi adds it (repo → Settings →
-   Secrets → Actions), the 9am cloud run emits search links instead of named
-   humans; local runs are fine.
-2. **Cross-source duplicate roles** — the same job from two sources gets two rows
-   (different `job_id`s), e.g. TEGNA, Walmart. Cosmetic; skip the twin. Fix: a
-   title+company dedupe pass.
-3. **Ashby/Lever fetchers** — ~11 companies listed in `target_companies.json` are
-   never fetched (Rippling, Cohere, Perplexity, Retool, Uber…).
-4. **Alias curation** — `python3 contacts_ingest.py --report-unmatched` lists big
-   contact clusters; 15 min on `company_aliases.json` (e.g. "jpmorganchase" →
-   "JPMorgan Chase") buys real referral matches.
-5. **VC-portfolio jobs are unscoreable** (source sends no descriptions) — marked in
-   the sheet, invisible to matching.
-6. **Scoring not scheduled** — deliberate (it spends money). ~50¢/day would close
-   the loop; needs Juhi's call.
+- New LinkedIn export → `python3 contacts_ingest.py` (updates people in place).
+- Resume changed → refresh `KEY_DETAILS` in `match_scorer.py`.
+- Story bank changed → `python3 -c "import draft_notes as d, json; json.dump(d.build_digest(), open(d.STORY_DIGEST,'w'), indent=2)"` and commit the digest.
+- New target company → add to `manual_targets` (+ its domain in `company_meta.json` so Hunter fires).
+
+## Known gaps (none block a send)
+
+1. Cross-source duplicate roles (same job, two ids) — skip the twin.
+2. Ashby/Lever companies in `target_companies.json` are never fetched.
+3. VC-portfolio jobs carry no descriptions → marked, unscoreable.
+4. Alias curation (`contacts_ingest.py --report-unmatched`) would surface a few more warm matches.
+5. `Sheet2` in the spreadsheet is unidentified content — left untouched.

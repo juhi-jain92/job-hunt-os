@@ -1,0 +1,154 @@
+[
+  {
+    "id": "S001",
+    "title": "800 Attributes to the Few That Mattered",
+    "tags": [
+      "ML ROOTS",
+      "TECH DEPTH",
+      "DATA-DRIVEN",
+      "NLP",
+      "EARLY CAREER",
+      "INFLUENCE"
+    ],
+    "impact": "30% conversion lift; $150K saved (text mining); $400K / 15% op-cost cut; $360K account salvaged and upsized",
+    "earned_secret": "The model was never the hard part. With 800 attributes, the lever was ruthless subtraction to the few variables that actually moved conversion, and translating a fuzzy business goal into something measurable. Most people reach for more, more features, bigger models. The value was in cutting. That same subtraction instinct is how I run AI systems now: deciding what not to build and what not to automate."
+  },
+  {
+    "id": "S002",
+    "title": "River OS, 0-to-1 B2C Smart TV OS",
+    "tags": [
+      "0-1",
+      "B2C",
+      "BUILDER",
+      "GTM",
+      "ML PRODUCT",
+      "INFLUENCE"
+    ],
+    "impact": "100K active TVs in under 1 yr; voice tech into 100M+ LG TVs post-acquisition; CES 2022 CEO demo; 4 app partners onboarded",
+    "earned_secret": "Features don't get built because they're clever. They get built because you can articulate why they're a competitive necessity. Voice ID got built because I framed it as survival, not innovation: not \"this is a nice feature,\" but \"without this we are just another interface.\" / In a 0-to-1 environment the PM's job is to make sure nothing falls through the cracks, not to protect scope. OTA-first is what made shipping before perfection safe. / Start where you can win. Tier-2 before tier-1 got devices in market and proved the concept faster than chasing a flagship deal with lower odds, then that p"
+  },
+  {
+    "id": "S003",
+    "title": "Offline Attribution Pipeline",
+    "tags": [
+      "DATA INFRA",
+      "0-1",
+      "ATTRIBUTION"
+    ],
+    "impact": "Net-new offline-attribution capability; $100K deal closed; productized as a reusable client-portal report",
+    "earned_secret": "I don't solve for one client, I productize the solve so it compounds. Turning a bespoke attribution request into a reusable portal capability is what turned a single $100K deal into a repeatable product line."
+  },
+  {
+    "id": "S004",
+    "title": "Inventory Quality System, Fraud Detection 0-to-1",
+    "tags": [
+      "ML",
+      "0-1",
+      "FRAUD",
+      "BUILD-VS-BUY",
+      "THRESHOLD"
+    ],
+    "impact": "~$3.75M incremental + $250K annual savings (~$4M aggregate, the resume figure); 20% partner-margin lift",
+    "earned_secret": "External vendors gave a binary fraud flag; the internal model gave a continuous, tunable per-partner score. That tunability, plus setting the block threshold where false-block cost exceeds fraud damage, is what made it worth building. That is the same precision/recall threshold judgment I apply to AI guardrails now."
+  },
+  {
+    "id": "S005",
+    "title": "Bid-Propensity Traffic Filtering, Bid Prediction ML",
+    "tags": [
+      "ML",
+      "YIELD",
+      "DRIFT",
+      "DS PARTNERSHIP"
+    ],
+    "impact": "$1.2M incremental revenue (LOCKED Aug 18 2026, confirmed defensible, on resume v3); higher bid density",
+    "earned_secret": "More traffic looks like more opportunity; it is the opposite. Undifferentiated volume depresses bid rates and pushes partners to throttle, so the yield lever was smarter traffic, not bigger. And the refresh cadence was a product decision, not a technical one: weekly caught drift without over-correcting on noise."
+  },
+  {
+    "id": "S006",
+    "title": "APM Team Development, Team Leadership",
+    "tags": [
+      "LEADERSHIP",
+      "MENTORSHIP"
+    ],
+    "impact": "4 APMs developed into independent vertical owners; 6 solution engineers coached to product thinking",
+    "earned_secret": "I taught engineers to judge when a partner request needs custom eng, when it can be templated, and when it should become a scalable pipeline. That build-vs-scale judgment is what turns an order-taker into a product owner, and ownership follows accountability (OKR-linked), not instruction."
+  },
+  {
+    "id": "S007",
+    "title": "Publisher Diagnostics Platform, 0-to-1 to Productionised",
+    "tags": [
+      "0-1",
+      "PLATFORM",
+      "DATA QUALITY",
+      "WORKFLOW AUTOMATION",
+      "OPS ENABLEMENT",
+      "COMPLIANCE"
+    ],
+    "impact": "$1.3M combined ($567K ops hours saved across 26 members, $600K demand-tag performance post ads.txt, $200K fill-rate lift); 35% ticket reduction; 2,500+ tags monitored; Ops runs supply business independently",
+    "earned_secret": "I filtered every feature request through one question, does this reduce manual effort at scale or solve a one-off? That discipline is what kept the platform from becoming a feature graveyard. And the phasing was the judgment, not the build: ship functional under constraints in Phase 1, then use the promotion mandate to productionise properly in Phase 2."
+  },
+  {
+    "id": "S008",
+    "title": "Native Enablement via Programmatic, First TV OEM",
+    "tags": [
+      "0-1",
+      "REVENUE",
+      "SCALE",
+      "CROSS-FUNCTIONAL",
+      "OWNERSHIP"
+    ],
+    "impact": "First TV OEM to enable programmatic across all ad formats; $16M annual revenue (predominantly incremental) in ~1.5 yrs; home-screen fill 25% -> monetized; DV360, Yahoo, TTD + Magnite/ClearLine + 7 resellers on S2S",
+    "earned_secret": "I didn't wait for demand to be proven before building. I proposed building the infrastructure in parallel with beta clients because the timing was the asset, not the certainty. And in the waterfall, managed demand wins over programmatic: you protect the pre-committed revenue while you prove the new business, you don't cannibalize before it's proven."
+  },
+  {
+    "id": "S009",
+    "title": "Alt ID Infrastructure, Contrarian Bet [IDENTITY] [0-1] [INFLUENCE] [BUILD-VS-BUY] (best influence story)",
+    "tags": [],
+    "impact": "UID2, RampID, ConnectID, Epsilon, Pair, Viant, ID5 across US/CA/EU5 + Google PAL & Amazon APS globally; 60% O&O CTV coverage; 3X bid rates; $3M+ incremental annual revenue",
+    "earned_secret": "The gap was the signal. LG wasn't even having the identity conversation the rest of the room was having, and recognizing an absence as an opportunity before there's internal appetite is the contrarian bet. On execution: buy for speed where you're behind (bought IP-to-HEM mapping for immediate coverage), but build where lock-in would cost you leverage (built the ingestion layer so we could onboard any ID partner on our terms)."
+  },
+  {
+    "id": "S010",
+    "title": "GDPR Compliance & EU Revenue Protection",
+    "tags": [
+      "COMPLIANCE",
+      "NEGOTIATION",
+      "CROSS-FUNCTIONAL",
+      "BUSINESS-FRAMING"
+    ],
+    "impact": "$6M EU programmatic revenue retained; 60%+ opt-in (vs 55% target, near UK's 65%); $2M managed loss within projection, offset by programmatic growth; net EU revenue positive; LG Ads established as fully GDPR-compliant programmatic partner",
+    "earned_secret": "Sales didn't need convincing that compliance was right, they needed to see non-compliance was more expensive. The $2M-vs-$4M asymmetry unlocked everything. That's the difference between a product leader and a policy enforcer: you speak in the language of the room you're in."
+  },
+  {
+    "id": "S011",
+    "title": "OOH & Inventory Expansion, Ambiguity & Guardrails",
+    "tags": [
+      "USER TRUST",
+      "PRIORITIZATION",
+      "AMBIGUITY",
+      "VALUES",
+      "SAYING NO"
+    ],
+    "impact": "Killed a legally-blocked in-vehicle integration (saved eng); blocked sound-on-by-default across new formats (protected home-screen trust); 100% hotel inventory consolidation ($100K live, $1.8M projected at scale, $2M on contract); intake framework became the LG-HQ operating model",
+    "earned_secret": "The win wasn't any single integration, it was institutionalizing the intake framework so ambiguous LGE requests got evaluated consistently, and it became HQ's operating model. The durable outcome of ambiguity work is the process, not the deal. And on values: partial inventory with split ownership can't become a scalable product, so 100% consolidation was a hard requirement, even at the cost of a month-long negotiation."
+  },
+  {
+    "id": "S012",
+    "title": "Vectorial, Founding AI PM: Voice-AI Interviewer Quality [AI] [EVALS] [TRUST-SAFETY] [OBSERVABILITY] [AGENTIC] [0-1] [FOUNDING] \u2014 DRAFT",
+    "tags": [],
+    "impact": "75% cost reduction ACHIEVED and MEASURED, not projected: $4-5/interview human-moderated (previously paid to Prolific) down to $1 AI-moderated, on real 45-minute interviews, live in beta, holding with all three models running. QUOTING CONVENTION (confirmed 2026-08-21): say and write \"$4 to $1\", quote the LOW end of the prior range deliberately. If probed, \"it ranged $4-5 by moderator, I quote the conservative end\" is a credibility gain. Resume bullet reads \"cut costs by 75% from $4 to $1 per interview\" and is accurate as written. Fixed six production failures across three layers (architecture, config, prompt), NOT \"5 failures to one prompt gap\", that framing is banned and positions her as debugger rather than architect. v1 roadmap adopted by CPO in week one, which is also the answer to the compressed-timeline probe: velocity is the evidence, not something to hide. OUTCOME METRICS NOT YET AVAILABLE (6 weeks in, beta): no usage counts, usable-rate lift, or judge-human agreement yet. Do NOT invent these. Capture when they land, that is what moves this story from 4 to 5.",
+    "earned_secret": "The interviewer had a target but no method. Everyone read the behavioral failures as an architecture problem and reached for a rewrite; the actual gap was that nobody had told the model HOW to probe, only what to find. Most teams rebuild when the missing piece is judgment that was never encoded in the first place. / The problem with the multi-agent build was never the number of models, it was that they were orchestrating each other. Every agent-to-agent handoff is a context transfer, a latency risk, a new failure mode, and another thing to instrument. So she kept the models and killed the hand"
+  },
+  {
+    "id": "S013",
+    "title": "Adtech Team Turnaround, Structure from Chaos",
+    "tags": [
+      "LEADERSHIP",
+      "AMBIGUITY",
+      "INFLUENCE",
+      "0-to-structure"
+    ],
+    "impact": "Turned a 17-person team in permanent fire-drill mode into a roadmap-driven org in ~6 months; analysts could finally choose a product vs engineering track; MVPs started getting productionised instead of piling up",
+    "earned_secret": "A team drowning in urgent work doesn't need more hands, it needs a filter and a roadmap. I had zero authority over 17 people, so I led two ways: I made every request justify itself with a metric, and I made everyone's impact visible. Once people could see how their work mapped to the business and could choose a track, they self-organized. Authority would have been faster but less durable, they owned the new way of working because they could see why it was better."
+  }
+]

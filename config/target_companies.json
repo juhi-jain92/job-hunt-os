@@ -88,6 +88,14 @@
     {
       "company": "Olyzon",
       "note": "$10M Series A (May 2026) for an agentic decisioning layer across CTV planning, activation and measurement"
+    },
+    {
+      "company": "StackAdapt",
+      "note": "agentic DSP; unveiled Ivy Studio agent hub + cross-channel attribution GA at Conversion (May 2026) and joined OpenAI's ChatGPT ads pilot; 81 open roles incl. Senior PM"
+    },
+    {
+      "company": "Smartly",
+      "note": "completed INCRMNTAL acquisition May 2026 — creative AI now paired with causal incrementality measurement, which is what upgrades the fit from creative-only to attribution"
     }
   ],
   "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement — marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms."

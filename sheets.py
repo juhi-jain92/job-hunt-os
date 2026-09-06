@@ -71,6 +71,7 @@ REFERRALS_COLUMNS = [
     "referrer_2", "referrer_2_owner", "recruiter",
     "note_to_send", "fallback_contact",
     "sent_1", "sent_2", "sent_rec", "followup_due",
+    "story_id", "drafted_on", "stale",
 ]
 
 # Networking lane. Column order follows the daily send block, not
@@ -82,7 +83,7 @@ NETWORKING_COLUMNS = [
     "link", "subject", "draft_body", "personalization_hook", "personalized",
     "digest", "sent_date", "response", "response_date", "follow_up_due",
     "follow_up_flag", "follow_up_sent", "job_id", "contact_id", "company_norm",
-    "match_confidence", "generated_at", "notes",
+    "match_confidence", "generated_at", "notes", "story_id", "drafted_on",
 ]
 
 # Statuses a human sets by hand — scripts must never overwrite these rows.

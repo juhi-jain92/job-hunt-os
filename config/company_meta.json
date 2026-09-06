@@ -1,5 +1,5 @@
 {
-  "_comment": "Optional per-company overrides for networking_daily.py and contact_extract.py, keyed by normalized company name (lowercase, legal suffixes stripped \u2014 the same form normalize.norm_company produces). Size and product lines are read live from the Greenhouse board, so they are NOT set here. Only add an entry when a company has a team page worth fetching or an email domain worth a Hunter.io lookup. Safe to commit \u2014 public information only.",
+  "_comment": "Optional per-company overrides for networking_daily.py and contact_extract.py, keyed by normalized company name (lowercase, legal suffixes stripped — the same form normalize.norm_company produces). Size and product lines are read live from the Greenhouse board, so they are NOT set here. Only add an entry when a company has a team page worth fetching or an email domain worth a Hunter.io lookup. Safe to commit — public information only.",
   "applovin": {
     "domain": "applovin.com"
   },
@@ -68,5 +68,11 @@
   },
   "olyzon": {
     "domain": "olyzon.com"
+  },
+  "stackadapt": {
+    "domain": "stackadapt.com"
+  },
+  "smartly": {
+    "domain": "smartly.io"
   }
 }

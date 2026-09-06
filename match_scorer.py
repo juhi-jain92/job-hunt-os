@@ -57,7 +57,14 @@ client = anthropic.Anthropic(api_key=API_KEY)
 # are distilled from resume/Juhi_Jain_Resume.pdf (Aug 2026). Refresh the
 # KEY_DETAILS block when the PDF changes.
 
-_store  = json.load(open(os.path.join(BASE, "config", "context_store.json")))
+try:
+    _store = json.load(open(os.path.join(BASE, "config", "context_store.json")))
+except FileNotFoundError:
+    # Gitignored personal file; absent in CI. Resume-level facts suffice.
+    _store = {"candidate": {"name": "Juhi Jain", "yoe": 10, "location": "Seattle, WA"},
+              "shared": {"locations": ["Seattle", "Remote"], "remote_preference": "remote-first",
+                         "salary": {"tc_floor": 200000},
+                         "seniority_band": ["Senior PM", "Principal PM", "Director"]}}
 _cand   = _store.get("candidate", {})
 _shared = _store.get("shared", {})
 

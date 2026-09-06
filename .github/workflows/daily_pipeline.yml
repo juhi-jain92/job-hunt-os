@@ -1,0 +1,35 @@
+name: Daily Pipeline
+
+# One run, every morning, in order: discover → score (capped) → referral match
+# → networking queue → draft notes → follow-ups & stale → Today view.
+# 12:30 UTC = 5:30am Pacific (daylight). Nothing here sends anything.
+on:
+  schedule:
+    - cron: '30 12 * * *'
+  workflow_dispatch:
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r requirements.txt
+
+      - name: Credentials
+        run: |
+          mkdir -p credentials
+          echo "${{ secrets.GOOGLE_SHEETS_KEY }}" | base64 --decode > credentials/sheets_key.json
+          {
+            echo "RAPIDAPI_KEY=${{ secrets.RAPIDAPI_KEY }}"
+            echo "APIFY_TOKEN=${{ secrets.APIFY_TOKEN }}"
+            echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}"
+            echo "HUNTER_API_KEY=${{ secrets.HUNTER_API_KEY }}"
+          } > .env
+
+      - name: Run the pipeline
+        run: python3 daily.py

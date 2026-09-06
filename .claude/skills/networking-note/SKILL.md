@@ -5,6 +5,9 @@ description: Draft a personalized outreach note for one networking prospect or r
 
 # Networking Note
 
+The automated version of this recipe is `draft_notes.py` (runs in the daily
+pipeline). Use this skill when Juhi asks for a note interactively.
+
 Write one outreach note for one target. The note is bullets, not prose — Juhi
 personalizes the last 10% and sends it herself. Nothing is ever sent by you.
 

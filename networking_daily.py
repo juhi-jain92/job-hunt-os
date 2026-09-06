@@ -53,7 +53,7 @@ try:
 except (FileNotFoundError, json.JSONDecodeError):
     pass
 
-DEFAULT_SLOTS = 5
+DEFAULT_SLOTS = 3
 COOLDOWN_DAYS = 14
 
 # Open-role count → how many slots the company costs and how many product
@@ -192,21 +192,37 @@ def days_since(value: str):
         return None
 
 
+def recently_queued(days: int = COOLDOWN_DAYS) -> set:
+    """
+    Companies that already have prospect rows generated inside the cooldown
+    window. This is the cooldown that actually holds: manual targets have no
+    Targets-tab row to stamp, and without this the same five companies were
+    re-queued every single morning.
+    """
+    cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    try:
+        rows = sheets.get_all_rows_with_numbers(sheets.get_networking_tab())
+    except Exception:
+        return set()
+    return {r.get("company_norm", "") for r in rows
+            if (r.get("generated_at", "") or "") >= cutoff and r.get("company_norm")}
+
+
 def build_pool(targets_rows: list, slugs: list) -> list:
     """
     Companies worth a touch today, best first.
 
-    Anything recommended within the cooldown window is suppressed outright —
+    Anything queued within the cooldown window is suppressed outright —
     without it the same three companies win every day.
     """
     pool = []
-    seen = set()
+    seen = set(recently_queued())
 
     # Manual targets outrank everything: they are pre-qualified by research,
     # and most have no public board for the signal-based scoring below.
     for t in load_manual_targets():
         key = norm_company(t.get("company", ""))
-        if not key or is_blocked(key):
+        if not key or is_blocked(key) or key in seen:
             continue
         seen.add(key)
         cooldown = None
@@ -287,11 +303,10 @@ def main():
     pool = build_pool(targets_rows, load_slugs())
 
     if not pool:
-        sys.exit(
-            "\nNothing eligible today — every known company is inside its "
-            f"{COOLDOWN_DAYS}-day cooldown.\n"
-            "  Run referral_match.py to add targets, or wait."
-        )
+        # Exit 0: an empty day is a normal outcome of the cooldown, not a failure.
+        print(f"\n  Nothing eligible today — every known company is inside its "
+              f"{COOLDOWN_DAYS}-day cooldown.")
+        return
 
     print(f"\n  {len(pool)} companies eligible. Filling {SLOTS} slot(s).\n")
 
@@ -347,7 +362,8 @@ def main():
               f"targeting: {', '.join(l or 'company-wide' for l in lines)}\n")
 
     if not picks:
-        sys.exit("  No company could be placed. Try --slots with a higher number.")
+        print("  No company could be placed today.")
+        return
 
     rows = []
     for pick in picks:

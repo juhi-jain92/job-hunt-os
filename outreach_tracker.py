@@ -77,6 +77,7 @@ def is_truthy(value: str) -> bool:
 
 
 SENT_SLOTS = ("sent_1", "sent_2", "sent_rec")
+STALE_AFTER_DAYS = 14
 
 
 def track_referrals(today: datetime):
@@ -91,12 +92,20 @@ def track_referrals(today: datetime):
         print("\n  Referrals tab is empty — run referral_match.py first.")
         return
 
-    updates, due_now, untouched = [], [], 0
+    updates, due_now, untouched, staled = [], [], 0, 0
+    stale_cutoff = today - timedelta(days=STALE_AFTER_DAYS)
 
     for r in rows:
         sent_dates = [d for d in (parse_date(r.get(s, "")) for s in SENT_SLOTS) if d]
         if not sent_dates:
-            if r.get("first_degree_available") == "TRUE":
+            # A role posted 14+ days ago that was never chased is stale: the
+            # 48-hour referral window is long gone. Flagged, never deleted;
+            # the Today view and the drafter simply stop showing it.
+            posted = parse_date(r.get("posted_at", ""))
+            if posted and posted < stale_cutoff and (r.get("stale", "") or "").upper() != "TRUE":
+                updates.append({"row_num": r["_row_num"], "values": {"stale": "TRUE"}})
+                staled += 1
+            elif r.get("first_degree_available") == "TRUE":
                 untouched += 1
             continue
 
@@ -113,7 +122,8 @@ def track_referrals(today: datetime):
     print("  Referral lane")
     print("  " + "=" * 54)
     print(f"    Roles tracked                     {len(rows)}")
-    print(f"    Warm path, not yet contacted      {untouched}")
+    print(f"    Newly marked stale (14d+, unsent) {staled}")
+    print(f"    Warm path, live, not contacted    {untouched}")
     print(f"    Follow-up due now                 {len(due_now)}")
     for r in due_now[:10]:
         print(f"      {r.get('company',''):<22} {r.get('title','')[:40]}")
