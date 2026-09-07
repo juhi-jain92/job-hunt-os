@@ -182,7 +182,10 @@ Return ONLY JSON, no fences:
   "note": "<the note in the FORMAT above, newlines between parts>"
 }
 
-Hard rules: metrics verbatim from the impact line only, never invented or rounded.
+Hard rules: NEVER use an em dash or en dash. Not one, anywhere. Use a period, a
+comma, a colon, or parentheses instead, or rewrite the sentence. An em dash reads
+as machine-written and undoes the whole note.
+Metrics verbatim from the impact line only, never invented or rounded.
 Never claim production coding, LLM fine-tuning, RAG hands-on, or seniority above
 Associate Director.
 """.strip()
@@ -262,6 +265,9 @@ def validate(d: dict, digest: list, channel: str, banned: set) -> str:
         return f"connection note {len(note)} chars > {MAX_CHARS_CONNECT}"
     if len(note.split()) > MAX_WORDS:
         return f"{len(note.split())} words > {MAX_WORDS}"
+    for ch, label in (("\u2014", "em dash"), ("\u2013", "en dash")):
+        if ch in note or ch in hook or ch in (d.get("subject") or ""):
+            return f"contains an {label}"
     impact = ids[d["story_id"]]["impact"]
     # A bare digit ("5") is not a metric. Require a currency, percent, or
     # magnitude marker, or at least two characters, so "$4 to $1" and "50%"

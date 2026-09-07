@@ -52,6 +52,9 @@ Juhi Jain
 linkedin.com/in/juhi-jain-pm · juhi-jain92.github.io
 ```
 
+Never use an em dash or en dash anywhere in the note. Use a period, comma, colon,
+or parentheses instead.
+
 Hard limits: **4 bullets maximum in the entire email**, one line each. Under 150
 words. No paragraph longer than two lines. No self-adjectives (passionate,
 proven, excited to bring). Write like a peer who noticed something, not an
