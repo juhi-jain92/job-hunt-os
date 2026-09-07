@@ -13,15 +13,17 @@ python3 daily.py
 
 It runs itself at 12:30 UTC (5:30am PDT, 4:30am PST) via GitHub Actions. The
 output of a good morning is the **Today** tab in the "Job Hunt OS" Google Sheet:
-up to five referral rows and five networking rows, each with a named person, a
-link, and a draft — the 20-minute send block.
+every role and prospect that has a draft and has not been sent, best first, each
+with the job link, the person, and the note — the 20-minute send block.
 
 ## The daily routine (Juhi)
 
 1. Open the **Today** tab. Rows with drafts already in hand.
-2. Personalize the last 10%, send from your own LinkedIn / email.
-3. Mark it: Referrals → today's date in `sent_1`; Networking → `status` SENT + `sent_date`.
-4. Done. Tomorrow's rows are drafted by the time you wake up.
+2. Open the job link to see what the role is; personalize the last 10%; send it
+   from your own LinkedIn or email.
+3. Type anything in the `sent` column, right there in Today.
+4. Done. The next run files that mark back to its source row, drops it out of
+   the view, and has tomorrow's rows drafted by the time you wake up.
 
 Everything else in the sheet is machinery. You never need to open it.
 
