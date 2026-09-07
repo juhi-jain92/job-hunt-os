@@ -37,21 +37,14 @@ import sys
 from datetime import datetime, timedelta
 
 import sheets
-from contact_extract import CONFIDENCE_TRUSTED, extract, hunter_domain_search, hunter_verify
-from linkedin_urls import people_search_url, research_links, school_search_url
+from contact_extract import CONFIDENCE_TRUSTED, extract, hunter_verify
+from linkedin_urls import people_search_url, school_search_url
 from normalize import is_blocked, norm_company
 
 BASE = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE, "config", "search_config.json")
 TARGETS_PATH = os.path.join(BASE, "config", "target_companies.json")
 META_PATH = os.path.join(BASE, "config", "company_meta.json")
-
-_cfg = {}
-try:
-    with open(CONFIG_PATH, encoding="utf-8") as fh:
-        _cfg = json.load(fh).get("velocity", {})
-except (FileNotFoundError, json.JSONDecodeError):
-    pass
 
 DEFAULT_SLOTS = 5
 COOLDOWN_DAYS = 14
@@ -202,8 +195,10 @@ def recently_queued(days: int = COOLDOWN_DAYS) -> set:
     cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
     try:
         rows = sheets.get_all_rows_with_numbers(sheets.get_networking_tab())
-    except Exception:
-        return set()
+    except Exception as exc:
+        # Swallowing this re-queues the same companies every morning with no
+        # trace. Fail the stage instead; daily.py will show the red X.
+        raise RuntimeError(f"cooldown check failed — Networking tab unreadable: {exc}") from exc
     return {r.get("company_norm", "") for r in rows
             if (r.get("generated_at", "") or "") >= cutoff and r.get("company_norm")}
 
@@ -479,7 +474,7 @@ def main():
     if stamps:
         sheets.batch_update_cells(targets_ws, stamps, sheets.TARGETS_COLUMNS)
 
-    print(f"\n  Queued {added} prospect(s). Nothing is sent — open the Outreach"
+    print(f"\n  Queued {added} prospect(s). Nothing is sent — open the Networking"
           "\n  tab, click through, and put names to the rows you want.")
 
 

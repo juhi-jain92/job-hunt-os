@@ -42,9 +42,8 @@ def _score(r):
 
 
 def collect() -> list:
-    ss = sheets._spreadsheet()
-    ref = sheets.get_all_rows_with_numbers(ss.worksheet(sheets.REFERRALS_TAB), formulas=True)
-    net = sheets.get_all_rows_with_numbers(ss.worksheet(sheets.NETWORKING_TAB))
+    ref = sheets.get_all_rows_with_numbers(sheets.get_referrals_tab(), formulas=True)
+    net = sheets.get_all_rows_with_numbers(sheets.get_networking_tab())
 
     out, seen_roles = [], set()
     for r in ref:

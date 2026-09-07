@@ -48,7 +48,7 @@ EFFORT = _cfg.get("effort", "low")
 PRICE_IN  = _cfg.get("price_input_per_m", 2.00)
 PRICE_OUT = _cfg.get("price_output_per_m", 10.00)
 
-USER_OWNED_STATUSES = {"applied", "interviewing", "rejected", "skipped"}
+USER_OWNED_STATUSES = sheets.JOB_USER_STATUSES
 FLUSH_EVERY = 25
 CALL_DELAY  = 0.1
 
@@ -62,7 +62,11 @@ client = anthropic.Anthropic(api_key=API_KEY)
 try:
     _store = json.load(open(os.path.join(BASE, "config", "context_store.json")))
 except FileNotFoundError:
-    # Gitignored personal file; absent in CI. Resume-level facts suffice.
+    # Gitignored personal file; absent in CI. Resume-level facts suffice, but
+    # say so: these defaults are narrower than the real store (no Bay Area).
+    print("  [warning] config/context_store.json absent — scoring with default "
+          "preferences (Seattle/Remote only, remote-first). Cloud and local "
+          "scores can differ on location.", file=sys.stderr)
     _store = {"candidate": {"name": "Juhi Jain", "yoe": 10, "location": "Seattle, WA"},
               "shared": {"locations": ["Seattle", "Remote"], "remote_preference": "remote-first",
                          "salary": {"tc_floor": 200000},
@@ -288,7 +292,7 @@ def derive(result: dict, current_status: str) -> dict:
     dealbreaker = str(result.get("dealbreaker", "") or "").strip()
     skip = bool(dealbreaker) or score <= 6
 
-    status = "low match" if skip else "ready to apply" if score >= 7 else "spray"
+    status = "low match" if skip else "ready to apply"
     reason = result.get("reason", "")
     if dealbreaker:
         reason = f"DEALBREAKER: {dealbreaker}. {reason}"
@@ -297,7 +301,9 @@ def derive(result: dict, current_status: str) -> dict:
         "score":        score,
         "notes":        reason,
         "status":       status,
-        "write_status": current_status in ("", "new"),
+        # Script-owned statuses may be rewritten (a --rescore-below pass must
+        # be able to lift "low match" to "ready to apply"); user-owned never.
+        "write_status": current_status in ("", "new", "low match", "ready to apply"),
         "skip":         skip,
     }
 

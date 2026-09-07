@@ -66,10 +66,16 @@ def build_digest() -> list:
     entries = re.split(r"\n(?=### S\d{3} · )", text)
     digest = []
     for e in entries:
-        m = re.match(r"### (S\d{3}) · (.+?)\s*((?:\[[^\]]+\]\s*)*)\s*$", e.split("\n")[0])
+        # Tags may be followed by a suffix ("(best influence story)", "— DRAFT"),
+        # so pull them from anywhere on the heading and take the title as
+        # everything before the first tag.
+        head = e.split("\n")[0]
+        m = re.match(r"### (S\d{3}) · (.*)$", head)
         if not m:
             continue
-        sid, title, tags = m.group(1), m.group(2).strip(), re.findall(r"\[([^\]]+)\]", m.group(3))
+        sid, rest = m.group(1), m.group(2)
+        tags  = re.findall(r"\[([^\]]+)\]", rest)
+        title = re.split(r"\s*\[", rest, maxsplit=1)[0].strip(" —-")
         impact  = re.search(r"^\| Impact \| (.+?) \|$", e, re.M)
         secrets = re.findall(r"^Earned secret[^:]*: (.+)$", e, re.M)
         digest.append({
@@ -85,7 +91,12 @@ def load_digest() -> list:
         d = build_digest()
         json.dump(d, open(STORY_DIGEST, "w"), indent=2)
         print(f"  story digest: {len(d)} stories → config/story_digest.json")
-    return json.load(open(STORY_DIGEST))
+    try:
+        return json.load(open(STORY_DIGEST))
+    except FileNotFoundError:
+        sys.exit(f"  [FATAL] {STORY_DIGEST} missing and resume/story-bank.md not "
+                 "available. Run locally: python3 draft_notes.py --refresh-digest, "
+                 "then commit config/story_digest.json.")
 
 
 # ── Row selection ─────────────────────────────────────────────────────────────
@@ -98,7 +109,10 @@ def pick_rows(n: int):
     """Warm referrals by score, then named networking prospects. Undrafted only."""
     ref_ws = sheets.get_referrals_tab()
     net_ws = sheets.get_networking_tab()
-    ref = sheets.get_all_rows_with_numbers(ref_ws)
+    # formulas=True so referrer_1 / fallback_contact arrive as the raw
+    # =HYPERLINK(...) cell, which is where the mailto: lives. Without it the
+    # cold-email lane in target_brief() can never match on "@".
+    ref = sheets.get_all_rows_with_numbers(ref_ws, formulas=True)
     net = sheets.get_all_rows_with_numbers(net_ws)
 
     def score(r):
@@ -229,14 +243,18 @@ def validate(d: dict, digest: list, channel: str, banned: set) -> str:
     if len(hook) < 20:
         return "hook missing"
     if note.count("•") < 3:
-        return "fewer than 4 bullets"
+        return "fewer than 3 bullets"
     if channel == "linkedin_connect_note" and len(note) > MAX_CHARS_CONNECT:
         return f"connection note {len(note)} chars > {MAX_CHARS_CONNECT}"
     if len(note.split()) > MAX_WORDS:
         return f"{len(note.split())} words > {MAX_WORDS}"
     impact = ids[d["story_id"]]["impact"]
-    nums = set(re.findall(r"\$?\d[\d,.]*[%KMx+]*", impact))
-    if not any(n in note for n in nums):
+    # A bare digit ("5") is not a metric. Require a currency, percent, or
+    # magnitude marker, or at least two characters, so "$4 to $1" and "50%"
+    # count and a stray "1" in prose does not.
+    nums = {n for n in re.findall(r"\$?\d[\d,.]*[%KMx+]*", impact)
+            if len(n) > 1 or re.search(r"[$%KMx]", n)}
+    if nums and not any(n in note for n in nums):
         return "no verbatim metric from the story's impact line"
     return ""
 

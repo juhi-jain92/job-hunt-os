@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 import sheets
 
-KEEP_STATUSES = {"applied", "interviewing", "rejected", "skipped"}
+KEEP_STATUSES = sheets.JOB_USER_STATUSES
 DRY_RUN = "--dry-run" in sys.argv
 DAYS = 7
 if "--days" in sys.argv:
@@ -62,9 +62,20 @@ def main():
         return
 
     values = [sheets.COLUMNS] + [[r.get(c, "") for c in sheets.COLUMNS] for r in keep]
+
+    # clear() then update() is not atomic. If the update fails the ledger is a
+    # bare header, so park the full pre-prune ledger in a backup tab first and
+    # refuse to proceed unless that write landed.
+    full = [sheets.COLUMNS] + [[r.get(c, "") for c in sheets.COLUMNS] for r in rows]
+    bk = sheets.open_or_create_tab("ledger_backup", sheets.COLUMNS, rows=len(full) + 10)
+    bk.clear()
+    bk.update(values=full, range_name="A1", value_input_option="RAW")
+    if len(values) < 1 or len(values[0]) != len(sheets.COLUMNS):
+        sys.exit("  [FATAL] refusing to rebuild: computed ledger has the wrong shape.")
+
     ws.clear()
     ws.update(values=values, range_name="A1", value_input_option="RAW")
-    print(f"  Ledger rebuilt: {len(keep)} rows.")
+    print(f"  Ledger rebuilt: {len(keep)} rows (pre-prune copy in 'ledger_backup').")
 
 
 if __name__ == "__main__":

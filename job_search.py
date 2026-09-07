@@ -137,6 +137,12 @@ for source_job_list in extra_sources:
             seen_ids.add(jid)
             collected.append(job)
 
+if not collected:
+    # An expired RapidAPI key or a Greenhouse outage looks exactly like a quiet
+    # day unless we say otherwise. Zero rows from every source is a failure.
+    sys.exit("[FATAL] discovery returned 0 jobs from every source — check "
+             "RAPIDAPI_KEY / quota and Greenhouse reachability.")
+
 # ---------- 5. Pre-filter — title relevance ----------
 
 from normalize import is_blocked

@@ -88,7 +88,10 @@ NETWORKING_COLUMNS = [
 
 # Statuses a human sets by hand — scripts must never overwrite these rows.
 USER_STATUSES = {"sent", "replied", "closed", "skipped"}
-OUTREACH_USER_STATUSES = USER_STATUSES  # retained for existing callers
+
+# Ledger (sheet1) statuses Juhi sets by hand. Scorer, referral match, and
+# prune all honour this one set; keep it here so they cannot drift apart.
+JOB_USER_STATUSES = {"applied", "interviewing", "rejected", "skipped"}
 
 
 def hyperlink(url: str, label: str) -> str:
@@ -126,7 +129,7 @@ def _spreadsheet():
 
 
 def col_letter(n: int) -> str:
-    """1 → A, 26 → Z, 27 → AA. The Outreach tab runs past column Z."""
+    """1 → A, 26 → Z, 27 → AA. The Networking tab runs past column Z."""
     letters = ""
     while n > 0:
         n, rem = divmod(n - 1, 26)

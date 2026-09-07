@@ -24,7 +24,6 @@ Usage:
     python3 referral_match.py --allow-fuzzy
 """
 
-import os
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -34,13 +33,12 @@ from contact_extract import hunter_domain_search
 from linkedin_urls import people_search_url
 from normalize import is_blocked, match_company, norm_company
 
-BASE = os.path.dirname(__file__)
 
 FRESH_HOURS = 48
 AUTO_FILL_CONFIDENCE = {"exact", "alias", "subset"}
 PEOPLE_SLOTS = 2
 
-USER_OWNED_JOB_STATUSES = {"applied", "rejected", "skipped"}
+USER_OWNED_JOB_STATUSES = sheets.JOB_USER_STATUSES
 
 # When nobody in either network is at the company, spend a Hunter credit to
 # find a product leader to cold-email — but only for fresh, strong roles, and

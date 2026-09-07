@@ -4,4 +4,3 @@ gspread
 google-auth
 google-auth-oauthlib
 anthropic
-apify-client
