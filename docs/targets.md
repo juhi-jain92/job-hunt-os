@@ -126,8 +126,9 @@ the agentic-ops future she's already shipped internally.
 [The Drum — Kevel case study](https://www.thedrum.com/awards-case-study/how-kevel-scaled-retail-media-revenue-with-api-native-infrastructure) ·
 live Greenhouse boards (moloco, topsort, mntn), checked 2026-08-27.
 
-## Note for the pipeline
-Three of the top five (Scope3, tvScientific, Kevel) are **not on Greenhouse**, so
-`networking_daily.py`'s board-driven slot picker can't see them. When we resume
-tooling: add a `manual_targets` list to `config/target_companies.json` that
-networking_daily treats as pre-qualified slots.
+## Pipeline status (2026-09-06)
+`manual_targets` shipped in `config/target_companies.json`; networking_daily
+treats them as pre-qualified slots ahead of board-signal picks. Every Tier B
+and Tier C company above (MNTN, Madhive, Wurl, Strategus, Samba TV, Innovid,
+iSpot, Walmart Connect, Criteo, Rokt, Zitcha) is now in `manual_targets` with
+a Hunter domain in `company_meta.json`.

@@ -24,7 +24,7 @@ Usage:
 import json
 import os
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timedelta
 
 import sheets
@@ -195,33 +195,13 @@ def main():
 
     remaining = max(0, CONNECT_CAP_PER_WEEK - sent_recent)
 
-    # --- hold back queued connection requests beyond the remaining allowance ---
-    queued_connects = [
-        r for r in rows
-        if (r.get("status", "") or "").strip().upper() in {"READY", "DRAFT"}
-        and (r.get("channel", "") or "").strip() == CAPPED_CHANNEL
-    ]
-    queued_connects.sort(key=lambda r: (r.get("priority", "9"), r.get("due_date", "")))
-
-    for i, r in enumerate(queued_connects):
-        should_hold = i >= remaining
-        current = (r.get("status", "") or "").strip().upper()
-        if should_hold and current != "HELD":
-            updates.append({
-                "row_num": r["_row_num"],
-                "values": {
-                    "status": "HELD",
-                    "notes": f"Held — {CONNECT_CAP_PER_WEEK}/week connect cap reached.",
-                },
-            })
-            counters["held"] += 1
 
     # ── report ────────────────────────────────────────────────────────────────
     print("\n  " + "=" * 54)
     print("  Outreach status")
     print("  " + "=" * 54)
     for status, n in counters.most_common():
-        if status in {"newly flagged", "flag cleared", "held"}:
+        if status in {"newly flagged", "flag cleared"}:
             continue
         print(f"    {status:<26} {n}")
 
@@ -230,9 +210,6 @@ def main():
     print("  " + "=" * 54)
     print(f"    Sent in the last 7 days     {sent_recent} / {CONNECT_CAP_PER_WEEK}")
     print(f"    Remaining this week         {remaining}")
-    print(f"    Queued connect requests     {len(queued_connects)}")
-    if len(queued_connects) > remaining:
-        print(f"    Over the cap, will hold     {len(queued_connects) - remaining}")
     print("\n    DMs to existing connections and cold emails do not count"
           "\n    against this cap — only new connection requests do.")
 
@@ -275,42 +252,7 @@ def main():
     sheets.batch_update_cells(ws, updates, sheets.NETWORKING_COLUMNS)
     print(f"\n  Updated {len(updates)} row(s).")
 
-    sync_contacts(rows)
 
-
-def sync_contacts(outreach_rows: list):
-    """Writes last_contacted and outreach_count back to the Contacts tab."""
-    stats = defaultdict(lambda: {"count": 0, "last": ""})
-    for r in outreach_rows:
-        cid = (r.get("contact_id", "") or "").strip()
-        if not cid or (r.get("status", "") or "").strip().lower() != "sent":
-            continue
-        sent = (r.get("sent_date", "") or "").strip()
-        stats[cid]["count"] += 1
-        if sent > stats[cid]["last"]:
-            stats[cid]["last"] = sent
-
-    if not stats:
-        return
-
-    ws = sheets.get_contacts_tab()
-    updates = []
-    for r in sheets.get_all_rows_with_numbers(ws):
-        cid = r.get("contact_id", "")
-        if cid not in stats:
-            continue
-        s = stats[cid]
-        changed = {}
-        if str(r.get("outreach_count", "")) != str(s["count"]):
-            changed["outreach_count"] = s["count"]
-        if s["last"] and r.get("last_contacted", "") != s["last"]:
-            changed["last_contacted"] = s["last"]
-        if changed:
-            updates.append({"row_num": r["_row_num"], "values": changed})
-
-    if updates:
-        sheets.batch_update_cells(ws, updates, sheets.CONTACTS_COLUMNS)
-        print(f"  Synced {len(updates)} contact record(s).")
 
 
 if __name__ == "__main__":

@@ -70,6 +70,10 @@ def main():
     bk = sheets.open_or_create_tab("ledger_backup", sheets.COLUMNS, rows=len(full) + 10)
     bk.clear()
     bk.update(values=full, range_name="A1", value_input_option="RAW")
+    try:
+        bk.hide()   # safety copy, not a working tab
+    except Exception:
+        pass
     if len(values) < 1 or len(values[0]) != len(sheets.COLUMNS):
         sys.exit("  [FATAL] refusing to rebuild: computed ledger has the wrong shape.")
 

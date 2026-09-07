@@ -42,7 +42,7 @@ USER_OWNED_JOB_STATUSES = sheets.JOB_USER_STATUSES
 
 # When nobody in either network is at the company, spend a Hunter credit to
 # find a product leader to cold-email — but only for fresh, strong roles, and
-# only a few a day: the free tier is 50 searches a month.
+# only a few a day so the Hunter spend stays deliberate (paid plan).
 HUNTER_COLD_MIN_SCORE = 8
 HUNTER_COLD_MAX_AGE_H = 14 * 24
 HUNTER_COLD_CAP = 3

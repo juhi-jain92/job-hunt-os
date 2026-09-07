@@ -74,5 +74,38 @@
   },
   "smartly": {
     "domain": "smartly.io"
+  },
+  "mntn": {
+    "domain": "mountain.com"
+  },
+  "madhive": {
+    "domain": "madhive.com"
+  },
+  "wurl": {
+    "domain": "wurl.com"
+  },
+  "strategus": {
+    "domain": "strategus.com"
+  },
+  "samba tv": {
+    "domain": "samba.tv"
+  },
+  "innovid": {
+    "domain": "innovid.com"
+  },
+  "ispot": {
+    "domain": "ispot.tv"
+  },
+  "walmart connect": {
+    "domain": "walmart.com"
+  },
+  "criteo": {
+    "domain": "criteo.com"
+  },
+  "rokt": {
+    "domain": "rokt.com"
+  },
+  "zitcha": {
+    "domain": "zitcha.com"
   }
 }

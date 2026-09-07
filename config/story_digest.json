@@ -102,8 +102,13 @@
   },
   {
     "id": "S009",
-    "title": "Alt ID Infrastructure, Contrarian Bet [IDENTITY] [0-1] [INFLUENCE] [BUILD-VS-BUY] (best influence story)",
-    "tags": [],
+    "title": "Alt ID Infrastructure, Contrarian Bet",
+    "tags": [
+      "IDENTITY",
+      "0-1",
+      "INFLUENCE",
+      "BUILD-VS-BUY"
+    ],
     "impact": "UID2, RampID, ConnectID, Epsilon, Pair, Viant, ID5 across US/CA/EU5 + Google PAL & Amazon APS globally; 60% O&O CTV coverage; 3X bid rates; $3M+ incremental annual revenue",
     "earned_secret": "The gap was the signal. LG wasn't even having the identity conversation the rest of the room was having, and recognizing an absence as an opportunity before there's internal appetite is the contrarian bet. On execution: buy for speed where you're behind (bought IP-to-HEM mapping for immediate coverage), but build where lock-in would cost you leverage (built the ingestion layer so we could onboard any ID partner on our terms)."
   },
@@ -134,8 +139,16 @@
   },
   {
     "id": "S012",
-    "title": "Vectorial, Founding AI PM: Voice-AI Interviewer Quality [AI] [EVALS] [TRUST-SAFETY] [OBSERVABILITY] [AGENTIC] [0-1] [FOUNDING] \u2014 DRAFT",
-    "tags": [],
+    "title": "Vectorial, Founding AI PM: Voice-AI Interviewer Quality",
+    "tags": [
+      "AI",
+      "EVALS",
+      "TRUST-SAFETY",
+      "OBSERVABILITY",
+      "AGENTIC",
+      "0-1",
+      "FOUNDING"
+    ],
     "impact": "75% cost reduction ACHIEVED and MEASURED, not projected: $4-5/interview human-moderated (previously paid to Prolific) down to $1 AI-moderated, on real 45-minute interviews, live in beta, holding with all three models running. QUOTING CONVENTION (confirmed 2026-08-21): say and write \"$4 to $1\", quote the LOW end of the prior range deliberately. If probed, \"it ranged $4-5 by moderator, I quote the conservative end\" is a credibility gain. Resume bullet reads \"cut costs by 75% from $4 to $1 per interview\" and is accurate as written. Fixed six production failures across three layers (architecture, config, prompt), NOT \"5 failures to one prompt gap\", that framing is banned and positions her as debugger rather than architect. v1 roadmap adopted by CPO in week one, which is also the answer to the compressed-timeline probe: velocity is the evidence, not something to hide. OUTCOME METRICS NOT YET AVAILABLE (6 weeks in, beta): no usage counts, usable-rate lift, or judge-human agreement yet. Do NOT invent these. Capture when they land, that is what moves this story from 4 to 5.",
     "earned_secret": "The interviewer had a target but no method. Everyone read the behavioral failures as an architecture problem and reached for a rewrite; the actual gap was that nobody had told the model HOW to probe, only what to find. Most teams rebuild when the missing piece is judgment that was never encoded in the first place. / The problem with the multi-agent build was never the number of models, it was that they were orchestrating each other. Every agent-to-agent handoff is a context transfer, a latency risk, a new failure mode, and another thing to instrument. So she kept the models and killed the hand"
   },

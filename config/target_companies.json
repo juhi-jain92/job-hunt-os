@@ -96,6 +96,50 @@
     {
       "company": "Smartly",
       "note": "completed INCRMNTAL acquisition May 2026 — creative AI now paired with causal incrementality measurement, which is what upgrades the fit from creative-only to attribution"
+    },
+    {
+      "company": "MNTN",
+      "note": "CTV performance + Creative-as-a-Subscription; 13 open roles (Tier B)"
+    },
+    {
+      "company": "Madhive",
+      "note": "CTV DSP for local/broadcast; strong supply story (Tier B)"
+    },
+    {
+      "company": "Wurl",
+      "note": "AppLovin-owned CTV supply + AI content targeting (Tier B)"
+    },
+    {
+      "company": "Strategus",
+      "note": "managed CTV programmatic (Tier B)"
+    },
+    {
+      "company": "Samba TV",
+      "note": "TV measurement; her attribution + SOV reporting (Tier B)"
+    },
+    {
+      "company": "Innovid",
+      "note": "CTV ad serving + measurement (Tier B)"
+    },
+    {
+      "company": "iSpot",
+      "note": "TV measurement and attribution (Tier B)"
+    },
+    {
+      "company": "Walmart Connect",
+      "note": "bought Vibe.co Jun 2026; integrating self-serve CTV into retail media (Tier C)"
+    },
+    {
+      "company": "Criteo",
+      "note": "retail media at scale; commerce audiences (Tier C)"
+    },
+    {
+      "company": "Rokt",
+      "note": "commerce transaction ads; performance ML at scale (Tier C)"
+    },
+    {
+      "company": "Zitcha",
+      "note": "retail media activation; commercial scale-up after CCO hire May 2026 (Tier C)"
     }
   ],
   "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement — marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms."

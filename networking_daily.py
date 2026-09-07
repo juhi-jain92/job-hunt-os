@@ -203,7 +203,7 @@ def recently_queued(days: int = COOLDOWN_DAYS) -> set:
             if (r.get("generated_at", "") or "") >= cutoff and r.get("company_norm")}
 
 
-def build_pool(targets_rows: list, slugs: list) -> list:
+def build_pool(slugs: list) -> list:
     """
     Companies worth a touch today, best first.
 
@@ -220,50 +220,10 @@ def build_pool(targets_rows: list, slugs: list) -> list:
         if not key or is_blocked(key) or key in seen:
             continue
         seen.add(key)
-        cooldown = None
-        for r in targets_rows:
-            if r.get("company_norm") == key:
-                cooldown = days_since(r.get("last_recommended_on", ""))
-                break
-        if cooldown is not None and cooldown < COOLDOWN_DAYS:
-            continue
         pool.append({
             "company": t.get("company", ""), "company_norm": key,
             "slug": key.replace(" ", ""), "score": 10, "manual": True,
             "source": "manual_targets", "row_num": None,
-        })
-
-    for r in targets_rows:
-        key = r.get("company_norm", "")
-        if not key or key in seen or is_blocked(key):
-            continue
-        seen.add(key)
-
-        cooldown = days_since(r.get("last_recommended_on", ""))
-        if cooldown is not None and cooldown < COOLDOWN_DAYS:
-            continue
-
-        score = 0
-        if r.get("best_tier") == "Tier 1":
-            score += 3
-        elif r.get("best_tier") == "Tier 2":
-            score += 2
-        try:
-            score += 3 if int(r.get("first_degree_count") or 0) > 0 else 0
-            score += 2 if int(r.get("dormant_count") or 0) > 0 else 0
-        except ValueError:
-            pass
-        age = days_since((r.get("role_posted_at") or "")[:10])
-        if age is not None and age <= 2:
-            score += 3
-
-        pool.append({
-            "company": r.get("company_display") or key,
-            "company_norm": key,
-            "slug": key.replace(" ", ""),
-            "score": score,
-            "source": "targets",
-            "row_num": r.get("_row_num"),
         })
 
     # Untouched companies from the curated list, so the pool never runs dry.
@@ -293,9 +253,7 @@ def main():
     today = datetime.now().strftime("%Y-%m-%d")
     meta = load_meta()
 
-    targets_ws = sheets.get_targets_tab()
-    targets_rows = sheets.get_all_rows_with_numbers(targets_ws)
-    pool = build_pool(targets_rows, load_slugs())
+    pool = build_pool(load_slugs())
 
     if not pool:
         # Exit 0: an empty day is a normal outcome of the cooldown, not a failure.
@@ -467,12 +425,6 @@ def main():
         outreach_ws, rows, sheets.NETWORKING_COLUMNS, "outreach_id"
     )
 
-    stamps = [
-        {"row_num": p["row_num"], "values": {"last_recommended_on": today}}
-        for p in picks if p.get("row_num")
-    ]
-    if stamps:
-        sheets.batch_update_cells(targets_ws, stamps, sheets.TARGETS_COLUMNS)
 
     print(f"\n  Queued {added} prospect(s). Nothing is sent — open the Networking"
           "\n  tab, click through, and put names to the rows you want.")

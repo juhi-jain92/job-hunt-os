@@ -244,6 +244,8 @@ def validate(d: dict, digest: list, channel: str, banned: set) -> str:
         return "hook missing"
     if note.count("•") < 3:
         return "fewer than 3 bullets"
+    if note.count("•") > 4:
+        return "more than 4 bullets"
     if channel == "linkedin_connect_note" and len(note) > MAX_CHARS_CONNECT:
         return f"connection note {len(note)} chars > {MAX_CHARS_CONNECT}"
     if len(note.split()) > MAX_WORDS:

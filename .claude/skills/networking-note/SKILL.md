@@ -23,8 +23,9 @@ personalizes the last 10% and sends it herself. Nothing is ever sent by you.
    pressure, an integration push, a pivot. This is where the hook lives.
 4. **Her story match** — read `resume/story-bank.md` (13 enriched stories, STAR
    format). Pick the ONE story whose "Earned secret" line speaks to their problem.
-   Check the story's `Use Count` / `Last Used` — do not spend the same story on
-   two companies in the same week; rotate.
+   Rotation ledger is the sheet, not the bank: check `story_id` + `drafted_on`
+   on the Referrals and Networking tabs (the automated drafter writes them) and
+   do not spend a story used in the last 7 days.
 5. **Her experience frame** — `match_scorer.py` KEY_DETAILS block has the
    distilled resume. Metrics must come from there or the story bank verbatim —
    never invent or round up.
@@ -38,7 +39,7 @@ personalizes the last 10% and sends it herself. Nothing is ever sent by you.
 • [The ask: excited to be considered for a product role / a 15-min conversation]
 ```
 
-4 bullets, ≤ 280 words total. LinkedIn connection notes: ≤ 280 CHARACTERS.
+3 to 4 bullets, ≤ 280 words total. LinkedIn connection notes: ≤ 280 CHARACTERS.
 
 ## Guardrails (from the PRD, non-negotiable)
 

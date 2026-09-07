@@ -35,7 +35,6 @@ COL_INDEX = {col: i + 1 for i, col in enumerate(COLUMNS)}
 # ---------- Referral engine tabs ----------
 
 CONTACTS_TAB   = "Contacts"
-TARGETS_TAB    = "Targets"
 REFERRALS_TAB  = "Referrals"    # referral lane — one row per 7+ role
 NETWORKING_TAB = "Networking"   # networking lane — one row per cold prospect
 
@@ -44,14 +43,6 @@ CONTACTS_COLUMNS = [
     "company_raw", "company_norm", "title", "seniority_hint", "connected_on",
     "tie_basis", "tie_type", "tier", "last_contacted", "outreach_count",
     "source_file", "ingested_at", "notes",
-]
-
-TARGETS_COLUMNS = [
-    "company_norm", "company_display", "size_class", "niche", "product_lines",
-    "source", "best_job_id", "best_tier", "role_posted_at", "first_degree_count",
-    "dormant_count", "route", "linkedin_people_url", "linkedin_isb_url",
-    "linkedin_dtu_url", "careers_url", "news_search_url", "digest",
-    "digest_generated_at", "last_recommended_on", "recommend_count", "status", "notes",
 ]
 
 # Referral lane. One row per role scoring 7+, because the daily question is
@@ -179,10 +170,6 @@ def open_or_create_tab(tab_name: str, columns: list, rows: int = 2000):
 
 def get_contacts_tab():
     return open_or_create_tab(CONTACTS_TAB, CONTACTS_COLUMNS)
-
-
-def get_targets_tab():
-    return open_or_create_tab(TARGETS_TAB, TARGETS_COLUMNS)
 
 
 def get_referrals_tab():
