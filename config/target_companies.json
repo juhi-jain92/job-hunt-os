@@ -49,7 +49,8 @@
     "profound",
     "spacex",
     "waymo",
-    "worldlabs"
+    "worldlabs",
+    "talkdesk2"
   ],
   "_not_on_greenhouse": {
     "ashby": [
@@ -71,23 +72,23 @@
   "blocked_companies": [
     "moloco"
   ],
-  "_blocked_note": "Never surface these companies anywhere — discovery, scoring, referral, networking. Matched on normalized company name.",
+  "_blocked_note": "Never surface these companies anywhere \u2014 discovery, scoring, referral, networking. Matched on normalized company name.",
   "manual_targets": [
     {
       "company": "Scope3",
-      "note": "agentic advertising platform — thesis match"
+      "note": "agentic advertising platform \u2014 thesis match"
     },
     {
       "company": "tvScientific",
-      "note": "outcome-based CTV — attribution match"
+      "note": "outcome-based CTV \u2014 attribution match"
     },
     {
       "company": "Kevel",
-      "note": "retail media cloud — ops-enablement match"
+      "note": "retail media cloud \u2014 ops-enablement match"
     },
     {
       "company": "Chalice",
-      "note": "custom bidding AI — decisioning match"
+      "note": "custom bidding AI \u2014 decisioning match"
     },
     {
       "company": "Topsort",
@@ -107,7 +108,7 @@
     },
     {
       "company": "Smartly",
-      "note": "completed INCRMNTAL acquisition May 2026 — creative AI now paired with causal incrementality measurement, which is what upgrades the fit from creative-only to attribution"
+      "note": "completed INCRMNTAL acquisition May 2026 \u2014 creative AI now paired with causal incrementality measurement, which is what upgrades the fit from creative-only to attribution"
     },
     {
       "company": "MNTN",
@@ -548,9 +549,13 @@
     {
       "company": "World Labs",
       "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Talkdesk",
+      "note": "CXA/agentic AI contact centre; Agent Builder + CXA Operations Center \u2014 eval/guardrail governance is her Vectorial work"
     }
   ],
-  "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement — marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms.",
+  "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement \u2014 marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms.",
   "ashby_slugs": [
     "abridge",
     "airwallex",
