@@ -43,13 +43,20 @@ def _score(r):
 
 def collect() -> list:
     ss = sheets._spreadsheet()
-    ref = sheets.get_all_rows_with_numbers(ss.worksheet(sheets.REFERRALS_TAB))
+    ref = sheets.get_all_rows_with_numbers(ss.worksheet(sheets.REFERRALS_TAB), formulas=True)
     net = sheets.get_all_rows_with_numbers(ss.worksheet(sheets.NETWORKING_TAB))
 
-    out = []
+    out, seen_roles = [], set()
     for r in ref:
+        # FORMULA rendering returns booleans/numbers for typed cells — normalize.
+        r = {k: (v if k == "_row_num" else ("" if v is None else str(v))) for k, v in r.items()}
         if not (r.get("note_to_send", "") or "").strip():
             continue
+        # The same job often arrives from two sources under two ids; show it once.
+        role_key = ((r.get("company", "") or "").lower(), (r.get("title", "") or "").lower())
+        if role_key in seen_roles:
+            continue
+        seen_roles.add(role_key)
         if (r.get("stale", "") or "").upper() == "TRUE":
             continue
         if any((r.get(k, "") or "").strip() for k in ("sent_1", "sent_2", "sent_rec")):

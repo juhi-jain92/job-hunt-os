@@ -345,13 +345,17 @@ def clear_data_rows(sheet):
     print("  Sheet cleared — header restored.")
 
 
-def get_all_rows_with_numbers(sheet) -> list:
+def get_all_rows_with_numbers(sheet, formulas: bool = False) -> list:
     """
     Returns every data row as a dict plus a '_row_num' key with its 1-based
     sheet row number (header is row 1, first data row is row 2).
-    Used by the scorer so it knows exactly which row to update.
+    formulas=True returns =HYPERLINK(...) cells as formulas instead of their
+    displayed label, so callers can recover the URL.
     """
-    all_values = sheet.get_all_values()   # list of lists, header at index 0
+    if formulas:
+        all_values = sheet.get_all_values(value_render_option="FORMULA")
+    else:
+        all_values = sheet.get_all_values()   # list of lists, header at index 0
     if not all_values:
         return []
     headers = all_values[0]
