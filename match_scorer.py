@@ -16,6 +16,8 @@ Usage:
     python3 match_scorer.py --estimate     cost estimate, no scoring
     python3 match_scorer.py --preview 5    score 5, print JSON, write nothing
     python3 match_scorer.py --limit 20     score and write only 20
+    python3 match_scorer.py --rescore-below 7   re-score rows currently under 7
+                                          (user-owned statuses untouched)
     caffeinate -dims python3 match_scorer.py
 """
 
@@ -124,25 +126,85 @@ decisioning, evals, guardrails and human review — $2M annualized, $10M+ projec
 """.strip()
 
 RUBRIC = """
-You are a precise, honest job-fit scorer. Never inflate scores. If the JD requires
-something the candidate lacks, or the description is too thin to judge, say so in
-"reason".
+You are a job-fit scorer optimizing for REFERRAL-WORTHINESS, not offer-worthiness.
+The question is not "is she the ideal candidate." It is: if a warm contact referred
+her for this role, would a recruiter reasonably take a 30-minute screen? Default to
+yes for any product-management role at Senior level or above in a software company.
+Be generous on domain and specific about dealbreakers. Never inflate seniority or
+invent skills; leniency lives in transferability, not in facts.
 
 Return ONLY a valid JSON object, no markdown fences, no prose:
 
 {
-  "domain":          <0-3  how well the job's domain matches adtech/CTV/programmatic experience>,
-  "ai":              <0-3  how central applied-AI product work is to this job and how well she fits it>,
-  "skills":          <0-2  overlap between JD requirements and her actual skills>,
-  "level":           <0-2  seniority and scope fit for a Senior PM-to-Director band>,
-  "dealbreaker":     <"" or the reason: salary top clearly under the floor, production
-                      coding as a hard requirement, sales/account role not product,
-                      agency not product company>,
-  "reason":          <2-3 sentences: why these scores, and any gap worth knowing>
+  "domain":  <0-3 TRANSFERABILITY of her domain experience to this job's domain.
+              3 = adtech, CTV, media, streaming, retail media, marketing tech.
+              2 = any two-sided or real-time system: marketplaces, payments, fintech
+                  ops, commerce, identity/data platforms, developer platforms, API
+                  products, B2B SaaS with ops or workflow automation, analytics.
+              1 = any other software product domain (consumer, health software,
+                  edtech, HR tech, logistics, gaming, and similar).
+              0 = ONLY if the domain requires credentials or background she cannot
+                  claim: clinical/medical practice, licensed finance, hardware or
+                  semiconductor engineering, defense clearance.>,
+
+  "ai":      <0-3 AI RELEVANCE and her fit for it.
+              3 = AI is the product or the core of the role: LLM features, agents,
+                  evals, AI platform, model APIs, AI-native workflows.
+              2 = AI is a meaningful part of the role or roadmap: AI features inside
+                  a larger product, AI adoption, automation, personalization, ML-
+                  powered decisioning.
+              1 = no AI in the role, but a real product role at an AI-curious or
+                  data-heavy company. She brings AI depth as a differentiator.
+              0 = ONLY if the role is ML engineering, research science, or requires
+                  hands-on model training, fine-tuning, or RAG implementation.>,
+
+  "skills":  <0-2 OVERLAP between the JD's top responsibilities and her tracks.
+              2 = the first three responsibilities map to at least two of: 0-to-1
+                  product building, platform or marketplace ownership, AI product
+                  work with evals/guardrails/HITL, monetization or growth, data or
+                  identity infrastructure, ops enablement, cross-functional and
+                  executive stakeholder leadership.
+              1 = at least one maps clearly.
+              0 = none map (rare for a PM role; use sparingly).>,
+
+  "level":   <0-2 SENIORITY FIT.
+              2 = Senior PM, Staff PM, Principal PM, Lead PM, Group PM, Director of
+                  Product, Head of Product at a small company, Associate Director.
+              1 = "Product Manager" with no level stated, or Product Lead / Owner
+                  where scope is unclear. Also VP Product at a very small startup.
+              0 = APM, junior, or "entry level"; or VP/CPO at a large company.>,
+
+  "dealbreaker": <"" or ONE of these exact reasons, nothing else counts:
+              "comp under floor" (posted top of range clearly under $200K total),
+              "coding required" (production code as a stated hard requirement),
+              "not product" (sales, account management, customer success, program/
+              project management, marketing, consulting delivery, solutions eng),
+              "agency or contract" (staffing agency, contract-to-hire, W2 contract,
+              recruiting firm posting on behalf of unnamed client),
+              "location" (ONSITE-ONLY, no remote and no hybrid, in a city that is
+              NOT in the Seattle metro (Seattle, Bellevue, Redmond, Kirkland) and
+              NOT in the SF Bay Area (San Francisco, Palo Alto, Menlo Park, Mountain
+              View, Sunnyvale, San Jose, Redwood City, Oakland, South SF). Bay Area
+              onsite is ACCEPTABLE, never a dealbreaker. Hybrid anywhere is a
+              reason, not a dealbreaker.),
+              "credential" (requires a license, clearance, or PhD).
+              Everything else is a reason, not a dealbreaker: adjacent domain, one
+              missing nice-to-have, unfamiliar industry, unstated comp, hybrid.>,
+
+  "reason":  <2 sentences. First: the strongest reason a referral makes sense (name
+              the track or story that maps). Second: the one gap she should know
+              before a screen, or "no material gap".>
 }
 
-Judge leniently on domain when the AI fit is genuine: a strong AI-core role in an
-adjacent domain (healthtech, fintech) is not a low match — let the ai dimension carry it.
+CALIBRATION. A healthy scan of real Senior+ PM postings should land 35 to 50 percent
+at 7 or above. If you find yourself below 6 on most software PM roles, you are
+scoring for offer, not referral. Anchors:
+- Sr PM, content conversion, streaming company, no AI in JD: 3+1+2+2 = 8.
+- Principal PM, AI-native operations platform, B2B payments: 2+3+2+2 = 9.
+- Senior PM, model APIs and developer experience, AI inference: 2+3+2+2 = 9.
+- Staff PM, developer tooling company, AI features on roadmap: 2+2+2+2 = 8.
+- PM (no level), consumer health app, no AI: 1+1+1+1 = 4 (reason, not dealbreaker).
+- Senior PM, marketplace ops, $150-180K posted: dealbreaker "comp under floor".
 """.strip()
 
 # Everything static sits in the system prompt with cache_control, in stable
@@ -255,6 +317,7 @@ def _flag(name, default):
 ESTIMATE = "--estimate" in sys.argv
 PREVIEW  = _flag("--preview", 5)
 LIMIT    = _flag("--limit", 10)
+RESCORE_BELOW = _flag("--rescore-below", 7)
 
 
 def main():
@@ -262,11 +325,28 @@ def main():
     sheet = sheets.open_or_create_sheet()
     all_rows = sheets.get_all_rows_with_numbers(sheet)
 
-    to_score = [
-        r for r in all_rows
-        if not str(r.get("score", "")).strip()
-        and (r.get("status", "") or "").lower() not in USER_OWNED_STATUSES
-    ]
+    def _num(v):
+        try:
+            return float(str(v).strip())
+        except ValueError:
+            return None
+
+    if RESCORE_BELOW is not None:
+        # Rubric changed: re-price every row that scored under the gate. Rows
+        # at or above the gate and user-owned rows are never touched.
+        to_score = [
+            r for r in all_rows
+            if _num(r.get("score", "")) is not None
+            and _num(r.get("score", "")) < RESCORE_BELOW
+            and (r.get("status", "") or "").lower() not in USER_OWNED_STATUSES
+        ]
+        print(f"  RESCORE — rows currently under {RESCORE_BELOW}: {len(to_score)}")
+    else:
+        to_score = [
+            r for r in all_rows
+            if not str(r.get("score", "")).strip()
+            and (r.get("status", "") or "").lower() not in USER_OWNED_STATUSES
+        ]
 
     # Rows with nothing to read are marked, not sent — a model call cannot
     # score a job it cannot see.
