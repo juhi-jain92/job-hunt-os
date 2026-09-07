@@ -196,30 +196,47 @@ def fetch_team_page(url: str) -> list:
 
 def hunter_domain_search(domain: str = "", company: str = "") -> dict:
     """
-    The company's email pattern plus any public addresses Hunter has indexed.
-    Accepts a domain or, when none is known, a company name (Hunter resolves it).
+    The company's email pattern plus the people Hunter has indexed.
+
+    The plan caps a domain search at 10 results, and an unfiltered search
+    returns whoever Hunter ranks first, which at a payroll company is payroll
+    and finance. Filtering changes WHICH ten come back, so this runs a few
+    department and seniority slices and merges them. At Wrapbook that took the
+    yield from zero product people to four, for the same credit cost per call.
     """
     if not HUNTER_API_KEY:
         return {
             "available": False,
-            "reason": "HUNTER_API_KEY not set in .env — add it to enable email lookup",
+            "reason": "HUNTER_API_KEY not set in .env - add it to enable email lookup",
         }
 
-    try:
-        resp = requests.get(
-            HUNTER_DOMAIN,
-            params={**({"domain": domain} if domain else {"company": company}),
-                    "api_key": HUNTER_API_KEY, "limit": 10},
-            timeout=TIMEOUT,
-        )
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        return {"available": False, "reason": str(e)[:90]}
+    target = {"domain": domain} if domain else {"company": company}
+    slices = ({"department": "management"}, {"department": "executive"},
+              {"seniority": "executive"}, {})
+    merged, pattern, failed = {}, "", 0
+    for extra in slices:
+        try:
+            resp = requests.get(
+                HUNTER_DOMAIN,
+                params={**target, "api_key": HUNTER_API_KEY, "limit": 10, **extra},
+                timeout=TIMEOUT,
+            )
+            resp.raise_for_status()
+            data = resp.json().get("data", {})
+        except requests.RequestException:
+            failed += 1
+            continue
+        pattern = pattern or (data.get("pattern") or "")
+        for e in data.get("emails", []):
+            if e.get("value"):
+                merged[e["value"]] = e
 
-    data = resp.json().get("data", {})
+    if failed == len(slices):
+        return {"available": False, "reason": "all Hunter lookups failed"}
+
     return {
         "available": True,
-        "pattern": data.get("pattern", ""),
+        "pattern": pattern,
         "emails": [
             {
                 "email": e.get("value", ""),
@@ -227,15 +244,9 @@ def hunter_domain_search(domain: str = "", company: str = "") -> dict:
                 "position": e.get("position", "") or "",
                 "confidence": e.get("confidence", 0) or 0,
             }
-            for e in data.get("emails", [])
-            if e.get("value")
+            for e in merged.values()
         ],
     }
-
-
-HUNTER_VERIFY = "https://api.hunter.io/v2/email-verifier"
-CONFIDENCE_TRUSTED = 80  # indexed emails at/above this skip the verifier
-
 
 def hunter_verify(email: str) -> dict:
     """
