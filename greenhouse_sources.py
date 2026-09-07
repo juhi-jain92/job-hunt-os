@@ -54,6 +54,10 @@ def _strip_html(raw: str) -> str:
 
 GREENHOUSE_API = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 
+from datetime import datetime, timedelta
+FRESH_DAYS = 7
+FRESH_CUTOFF = (datetime.now() - timedelta(days=FRESH_DAYS)).strftime("%Y-%m-%d")
+
 def _fetch_company(slug: str) -> list:
     """Returns all normalized jobs for a slug with no title filtering."""
     url = GREENHOUSE_API.format(slug=slug)
@@ -69,6 +73,12 @@ def _fetch_company(slug: str) -> list:
 
     results = []
     for job in resp.json().get("jobs", []):
+        # Boards list every open role regardless of age. Anything older than
+        # the freshness window is skipped so pruned rows never boomerang back
+        # as "new" and get re-scored.
+        stamp = (job.get("first_published") or job.get("updated_at") or "")[:10]
+        if stamp and stamp < FRESH_CUTOFF:
+            continue
         title         = job.get("title", "")
         location_name = (job.get("location") or {}).get("name", "")
         description   = _strip_html(job.get("content", ""))[:8000]

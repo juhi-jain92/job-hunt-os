@@ -3,7 +3,7 @@ daily.py — The whole pipeline, one command, in order. Every stage is
 independent: a failure is logged and the next stage still runs, and the run
 ends with a one-screen summary of what landed and what didn't.
 
-    discover → score (capped) → referral match → networking queue
+    discover → prune (>7d) → score (capped) → referral match → networking queue
              → draft notes → follow-ups & stale → Today view
 
 Same command locally and in the 5:30am GitHub Actions run.
@@ -11,7 +11,7 @@ Same command locally and in the 5:30am GitHub Actions run.
 Usage:
     python3 daily.py                 everything
     python3 daily.py --no-spend      skip the two stages that cost money
-    python3 daily.py --from draft    start at a stage: discover|score|match|network|draft|track|today
+    python3 daily.py --from draft    start at a stage: discover|prune|score|match|network|draft|track|today
 """
 
 import subprocess
@@ -23,6 +23,7 @@ DRAFTS_PER_DAY = 5   # per lane: 5 referral + 5 networking
 
 STAGES = [
     ("discover", ["job_search.py"],                      False),
+    ("prune",    ["prune_ledger.py"],                    False),
     ("score",    ["match_scorer.py", "--limit", str(SCORE_CAP)], True),
     ("match",    ["referral_match.py"],                  False),
     ("network",  ["networking_daily.py"],                False),
