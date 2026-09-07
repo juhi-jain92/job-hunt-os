@@ -208,7 +208,7 @@ def call_model(client, blocks, brief: str, banned: set) -> dict:
         messages=[{"role": "user", "content": user}],
         output_config={"effort": EFFORT},
         tools=[{"type": "web_search_20260209", "name": "web_search", "max_uses": 3}],
-        timeout=180,
+        timeout=120,
     )
     text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text").strip()
     m = re.search(r"\{.*\}", text, re.S)
@@ -281,21 +281,23 @@ def main():
         if PREVIEW:
             print("    " + draft["note"].replace("\n", "\n    ") + "\n")
             continue
+        # Written immediately: a hang or crash later must never lose a
+        # draft that already passed validation.
         if lane == "referral":
-            ref_updates.append({"row_num": r["_row_num"], "values": {
-                "note_to_send": draft["note"], "story_id": draft["story_id"], "drafted_on": today}})
+            sheets.batch_update_cells(ref_ws, [{"row_num": r["_row_num"], "values": {
+                "note_to_send": draft["note"], "story_id": draft["story_id"], "drafted_on": today}}],
+                sheets.REFERRALS_COLUMNS)
+            ref_updates.append(r["_row_num"])
         else:
-            net_updates.append({"row_num": r["_row_num"], "values": {
+            sheets.batch_update_cells(net_ws, [{"row_num": r["_row_num"], "values": {
                 "draft_body": draft["note"], "personalization_hook": draft["hook"],
-                "story_id": draft["story_id"], "drafted_on": today}})
+                "story_id": draft["story_id"], "drafted_on": today}}],
+                sheets.NETWORKING_COLUMNS)
+            net_updates.append(r["_row_num"])
 
     if PREVIEW:
         print("  --preview — nothing written.")
         return
-    if ref_updates:
-        sheets.batch_update_cells(ref_ws, ref_updates, sheets.REFERRALS_COLUMNS)
-    if net_updates:
-        sheets.batch_update_cells(net_ws, net_updates, sheets.NETWORKING_COLUMNS)
     print(f"  Wrote {len(ref_updates)} referral + {len(net_updates)} networking draft(s). Nothing sent.")
 
 
