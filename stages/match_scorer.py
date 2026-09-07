@@ -191,15 +191,13 @@ Return ONLY a valid JSON object, no markdown fences, no prose:
               project management, marketing, consulting delivery, solutions eng),
               "agency or contract" (staffing agency, contract-to-hire, W2 contract,
               recruiting firm posting on behalf of unnamed client),
-              "location" (ONSITE-ONLY, no remote and no hybrid, in a city that is
-              NOT in the Seattle metro (Seattle, Bellevue, Redmond, Kirkland) and
-              NOT in the SF Bay Area (San Francisco, Palo Alto, Menlo Park, Mountain
-              View, Sunnyvale, San Jose, Redwood City, Oakland, South SF). Bay Area
-              onsite is ACCEPTABLE, never a dealbreaker. Hybrid anywhere is a
-              reason, not a dealbreaker.),
               "credential" (requires a license, clearance, or PhD).
+              NEVER use location as a dealbreaker. Juhi reviews location herself.
+              If the role is onsite somewhere she would have to move, say so in
+              "reason" — do not block the role.
               Everything else is a reason, not a dealbreaker: adjacent domain, one
-              missing nice-to-have, unfamiliar industry, unstated comp, hybrid.>,
+              missing nice-to-have, unfamiliar industry, unstated comp, hybrid,
+              and location of any kind.>,
 
   "reason":  <2 sentences. First: the strongest reason a referral makes sense (name
               the track or story that maps). Second: the one gap she should know
