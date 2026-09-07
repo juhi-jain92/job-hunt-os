@@ -43,6 +43,26 @@ def _score(r):
         return 0
 
 
+def _today_tab(rows_needed: int = 200):
+    """
+    The Today tab is a pure view, so when its columns change the right move is
+    to rebuild it rather than refuse to run. Anything a person typed into it is
+    already filed by absorb_marks(), which runs first.
+    """
+    try:
+        return sheets.open_or_create_tab(TODAY_TAB, TODAY_COLUMNS, rows=rows_needed)
+    except RuntimeError as exc:
+        if "Header drift" not in str(exc):
+            raise
+        print("  Today tab columns changed — rebuilding the view.")
+        ss = sheets._spreadsheet()
+        try:
+            ss.del_worksheet(ss.worksheet(TODAY_TAB))
+        except Exception:
+            pass
+        return sheets.open_or_create_tab(TODAY_TAB, TODAY_COLUMNS, rows=rows_needed)
+
+
 def absorb_marks() -> int:
     """
     Reads the Today tab as it stands and pushes anything marked in `sent` back
@@ -50,7 +70,7 @@ def absorb_marks() -> int:
     refresh that follows it.
     """
     try:
-        ws = sheets.open_or_create_tab(TODAY_TAB, TODAY_COLUMNS, rows=200)
+        ws = _today_tab()
         rows = sheets.get_all_rows_with_numbers(ws)
     except Exception as exc:
         print(f"  [warning] could not read the Today tab to collect marks: {exc}")
@@ -166,7 +186,7 @@ def main():
     if "--print" in sys.argv:
         return
 
-    ws = sheets.open_or_create_tab(TODAY_TAB, TODAY_COLUMNS, rows=max(50, len(rows) + 20))
+    ws = _today_tab(max(50, len(rows) + 20))
     ws.clear()
     values = [TODAY_COLUMNS] + [[r[c] for c in TODAY_COLUMNS] for r in rows]
     ws.update(values=values, range_name="A1", value_input_option="USER_ENTERED")

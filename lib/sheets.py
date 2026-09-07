@@ -97,17 +97,30 @@ def hyperlink(url: str, label: str) -> str:
     return f'=HYPERLINK("{url}","{safe}")'
 
 
+_CLIENT = None
+_SPREADSHEET = None
+
+
 def _client():
-    """Creates an authenticated gspread client using the service account key."""
-    creds = Credentials.from_service_account_file(CREDS_PATH, scopes=SCOPES)
-    return gspread.authorize(creds)
+    """Authenticated gspread client, built once per process."""
+    global _CLIENT
+    if _CLIENT is None:
+        creds = Credentials.from_service_account_file(CREDS_PATH, scopes=SCOPES)
+        _CLIENT = gspread.authorize(creds)
+    return _CLIENT
 
 
 def _spreadsheet():
     """
     Opens the 'Job Hunt OS' spreadsheet, creating and sharing it if missing.
-    Shared by open_or_create_sheet() and open_or_create_tab().
+
+    Cached for the life of the process. Every tab accessor calls this, so
+    without the cache one stage re-authenticated and re-fetched the whole
+    spreadsheet's metadata a dozen times and ran into the Sheets read quota.
     """
+    global _SPREADSHEET
+    if _SPREADSHEET is not None:
+        return _SPREADSHEET
     client = _client()
     try:
         spreadsheet = client.open(SHEET_NAME)
@@ -117,6 +130,7 @@ def _spreadsheet():
         # Share with your Google account so you can open it in your browser
         spreadsheet.share(OWNER_EMAIL, perm_type="user", role="writer", notify=False)
         print(f"  Created new sheet '{SHEET_NAME}' and shared with {OWNER_EMAIL}")
+    _SPREADSHEET = spreadsheet
     return spreadsheet
 
 
