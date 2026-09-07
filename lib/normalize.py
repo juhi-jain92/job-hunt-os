@@ -15,7 +15,7 @@ import os
 import re
 import unicodedata
 
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALIAS_PATH = os.path.join(BASE, "config", "company_aliases.json")
 
 # Dropped during normalization — legal-entity noise, never meaning.
@@ -139,7 +139,7 @@ def seniority_hint(title: str) -> str:
 import json as _json
 import os as _os
 
-_TARGETS = _os.path.join(_os.path.dirname(__file__), "config", "target_companies.json")
+_TARGETS = _os.path.join(_os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "target_companies.json")
 
 def _blocked() -> set:
     try:
@@ -154,3 +154,19 @@ BLOCKED = _blocked()
 def is_blocked(company: str) -> bool:
     """True for companies Juhi never wants surfaced, matched on normalized name."""
     return norm_company(company) in BLOCKED
+
+
+def role_key(company: str, title: str) -> str:
+    """
+    Identity of a ROLE, not of a posting. The same job arrives from several
+    sources under different job_ids; dedupe on this instead so the Referrals
+    tab shows one row per role.
+    """
+    import re as _re
+    c = norm_company(company or "")
+    t = (title or "").lower()
+    t = _re.sub(r"\(.*?\)", " ", t)
+    t = _re.sub(r"[^a-z0-9 ]", " ", t)
+    t = _re.sub(r"\b(remote|hybrid|onsite|us|usa|united states)\b", " ", t)
+    t = " ".join(t.split())
+    return f"{c}|{t}"

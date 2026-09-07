@@ -32,7 +32,7 @@ from html.parser import HTMLParser
 import requests
 from dotenv import load_dotenv
 
-load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 HUNTER_API_KEY = os.getenv("HUNTER_API_KEY")
 

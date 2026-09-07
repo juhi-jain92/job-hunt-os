@@ -36,12 +36,12 @@ import os
 import sys
 from datetime import datetime, timedelta
 
-import sheets
-from contact_extract import CONFIDENCE_TRUSTED, extract, hunter_verify
-from linkedin_urls import people_search_url, school_search_url
-from normalize import is_blocked, norm_company
+from lib import sheets
+from lib.contact_extract import CONFIDENCE_TRUSTED, extract, hunter_verify
+from lib.linkedin_urls import people_search_url, school_search_url
+from lib.normalize import is_blocked, norm_company
 
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(BASE, "config", "search_config.json")
 TARGETS_PATH = os.path.join(BASE, "config", "target_companies.json")
 META_PATH = os.path.join(BASE, "config", "company_meta.json")
@@ -249,10 +249,49 @@ def prospect_id(company: str, line: str, n: int) -> str:
     return "o_" + hashlib.sha1(seed.encode()).hexdigest()[:16]
 
 
+DEAD_AFTER_DAYS = 3
+
+
+def drop_dead_prospects() -> int:
+    """
+    A prospect with no name can never be drafted (draft_notes skips it), so a
+    day where Hunter found nobody leaves rows that will sit there forever. Clear
+    the ones that have had their chance; anything named, drafted, or acted on
+    stays. Without this the tab grew to 125 rows of which 119 were unusable.
+    """
+    ws = sheets.get_networking_tab()
+    rows = sheets.get_all_rows_with_numbers(ws)
+    if not rows:
+        return 0
+    cutoff = (datetime.now() - timedelta(days=DEAD_AFTER_DAYS)).strftime("%Y-%m-%d")
+
+    def keep(r):
+        if (r.get("status", "") or "").upper() != "PROSPECT":
+            return True                     # sent, replied, held — hers
+        if (r.get("contact_name", "") or "").strip():
+            return True
+        if (r.get("draft_body", "") or "").strip():
+            return True
+        return (r.get("generated_at", "") or "")[:10] >= cutoff
+
+    kept = [r for r in rows if keep(r)]
+    dropped = len(rows) - len(kept)
+    if not dropped:
+        return 0
+    values = [sheets.NETWORKING_COLUMNS] + [
+        [str(r.get(c, "")) for c in sheets.NETWORKING_COLUMNS] for r in kept]
+    ws.clear()
+    ws.update(values=values, range_name="A1", value_input_option="USER_ENTERED")
+    print(f"  Cleared {dropped} nameless prospect row(s) older than "
+          f"{DEAD_AFTER_DAYS} days; {len(kept)} row(s) remain.")
+    return dropped
+
+
 def main():
     today = datetime.now().strftime("%Y-%m-%d")
     meta = load_meta()
 
+    drop_dead_prospects()
     pool = build_pool(load_slugs())
 
     if not pool:

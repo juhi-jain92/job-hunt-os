@@ -10,7 +10,7 @@ from html.parser import HTMLParser
 
 import requests
 
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ── Load target companies ─────────────────────────────────────────────────────
 

@@ -37,7 +37,19 @@
     "flexport",
     "doordashusa",
     "tripadvisor",
-    "togetherai"
+    "togetherai",
+    "chainguard",
+    "coreweave",
+    "etchedai",
+    "figure",
+    "helsing",
+    "kalshi",
+    "lovable",
+    "mercury",
+    "profound",
+    "spacex",
+    "waymo",
+    "worldlabs"
   ],
   "_not_on_greenhouse": {
     "ashby": [
@@ -140,7 +152,464 @@
     {
       "company": "Zitcha",
       "note": "retail media activation; commercial scale-up after CCO hire May 2026 (Tier C)"
+    },
+    {
+      "company": "Abridge",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Airbnb",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Airwallex",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Anduril",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Anthropic",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Applied Compute",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Applied Intuition",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Base",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Baseten",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Basis",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Bedrock Robotics",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Black Forest Labs",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Chai Discovery",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Chainguard",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Clay",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "ClickHouse",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Cloudflare",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Cognition",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "CoreWeave",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Crusoe",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Cursor",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Cyera",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Databricks",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Decagon",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Deel",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "ElevenLabs",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Etched",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Exa",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Factory",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Fal",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Figma",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Figure",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Fireworks",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Gamma",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Genspark",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Glean",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Google",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Granola",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Handshake",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Harvey",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Helsing",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Hex",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Kalshi",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Lambda",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "LangChain",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Legora",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Linear",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Liquid AI",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Lovable",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Mercor",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Mercury",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Mistral AI",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Modal",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "n8n",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Notion",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "NVIDIA",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "OpenAI",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "OpenEvidence",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Palantir",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Parallel Web Systems",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Periodic Labs",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Physical Intelligence",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Pierre Computer",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Polymarket",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "PostHog",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Prime Intellect",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Profound",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Railway",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Ramp",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Reflection AI",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Replit",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Revolut",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Ricursive",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Rippling",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Runway",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Safe Superintelligence",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Saronic",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Shield AI",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Shopify",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Sierra",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Skild",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "SpaceX",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Stripe",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Sunday Robotics",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Supabase",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Surge AI",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Temporal",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Tesla",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Thinking Machines",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Together",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Turbopuffer",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Valon",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Vanta",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Vercel",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Waymo",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Whatnot",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "Wispr Flow",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "WorkOS",
+      "note": "Lenny 100 (Sep 2026)"
+    },
+    {
+      "company": "World Labs",
+      "note": "Lenny 100 (Sep 2026)"
     }
   ],
-  "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement — marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms."
+  "_manual_targets_note": "Pre-qualified networking slots from research. Most are not on Greenhouse, so networking_daily gives them a slot without a board signal. Selection criteria beyond adtech: any company whose core problem is supply-demand matching, auctions/pricing, conversion economics, attribution, or ops enablement — marketplaces, CTV platforms, fintech with marketplace dynamics all qualify (e.g. the LawnStarter/Roku/Tereina shapes), not just ad platforms.",
+  "ashby_slugs": [
+    "abridge",
+    "airwallex",
+    "base",
+    "baseten",
+    "bedrock-robotics",
+    "black-forest-labs",
+    "chaidiscovery",
+    "clickhouse",
+    "cognition",
+    "crusoe",
+    "cursor",
+    "decagon",
+    "elevenlabs",
+    "exa",
+    "factory",
+    "fireworks",
+    "gamma",
+    "genspark",
+    "granola",
+    "handshake",
+    "harvey",
+    "hex",
+    "lambda",
+    "langchain",
+    "legora",
+    "linear",
+    "liquid-ai",
+    "mercor",
+    "modal",
+    "n8n",
+    "notion",
+    "openai",
+    "openevidence",
+    "periodic-labs",
+    "physicalintelligence",
+    "polymarket",
+    "posthog",
+    "primeintellect",
+    "railway",
+    "ramp",
+    "reflectionai",
+    "replit",
+    "runway",
+    "saronic",
+    "sierra",
+    "supabase",
+    "surge-ai",
+    "temporal",
+    "thinkingmachines",
+    "turbopuffer",
+    "valon",
+    "vanta",
+    "wispr-flow",
+    "workos"
+  ],
+  "lever_slugs": [
+    "basis",
+    "palantir"
+  ],
+  "_ats_note": "Ashby and Lever boards, fetched by lib/ats_sources.py. Most high-signal AI companies are on Ashby, not Greenhouse; a Greenhouse-only pipeline cannot see them."
 }

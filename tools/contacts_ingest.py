@@ -23,10 +23,10 @@ import sys
 from collections import Counter
 from datetime import datetime
 
-import sheets
-from normalize import norm_company, seniority_hint
+from lib import sheets
+from lib.normalize import norm_company, seniority_hint
 
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONNECTIONS_DIR = os.path.join(BASE, "data", "connections")
 PAST_EMPLOYERS_PATH = os.path.join(BASE, "config", "past_employers.json")
 

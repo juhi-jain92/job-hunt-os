@@ -28,10 +28,10 @@ import sys
 from collections import Counter, defaultdict
 from datetime import datetime
 
-import sheets
-from contact_extract import hunter_domain_search
-from linkedin_urls import people_search_url
-from normalize import is_blocked, match_company, norm_company
+from lib import sheets
+from lib.contact_extract import hunter_domain_search
+from lib.linkedin_urls import people_search_url
+from lib.normalize import is_blocked, match_company, norm_company, role_key
 
 
 FRESH_HOURS = 48
@@ -86,7 +86,17 @@ FRESH_ONLY   = "--fresh-only" in sys.argv
 
 
 def qualifies(row: dict, min_score: int) -> bool:
-    """The ledger's score column is the 0-10 total the scorer computed."""
+    """
+    The ledger's score column is the 0-10 total the scorer computed.
+
+    A dealbreaker (staffing agency, comp under floor, not a product role) sinks
+    a role no matter how well it scores on fit, so check the scorer's verdict
+    too — score alone would let an 8-scoring contract role reach the lane.
+    """
+    if (row.get("status", "") or "").strip().lower() == "low match":
+        return False
+    if (row.get("notes", "") or "").lstrip().upper().startswith("DEALBREAKER"):
+        return False
     try:
         return float(row.get("score", "") or 0) >= min_score
     except ValueError:
@@ -186,6 +196,22 @@ def main():
     if FRESH_ONLY:
         eligible = [r for r in eligible
                     if (hours_old(r.get("posted_at", "")) or 1e9) <= FRESH_HOURS]
+    # The same role arrives from several sources under different job_ids.
+    # Keep the best-scoring copy of each so the lane shows one row per role.
+    by_role = {}
+    for r in eligible:
+        k = role_key(r.get("company", ""), r.get("title", ""))
+        prev = by_role.get(k)
+        def _s(x):
+            try: return float(x.get("score", 0) or 0)
+            except ValueError: return 0.0
+        if prev is None or _s(r) > _s(prev):
+            by_role[k] = r
+    dropped = len(eligible) - len(by_role)
+    eligible = list(by_role.values())
+    if dropped:
+        print(f"    {dropped} duplicate posting(s) of the same role collapsed")
+
     if LIMIT:
         eligible = eligible[:LIMIT]
 
@@ -225,6 +251,7 @@ def main():
             "posted_at": (job.get("posted_at", "") or "")[:10],
             "score": job.get("score", ""),
             "notes": fuzzy_note + (job.get("notes", "") or "")[:180],
+            "job_url": job.get("url", ""),
             "first_degree_available": "TRUE" if people else "FALSE",
             "note_to_send": "",
             "sent_1": "", "sent_2": "", "sent_rec": "", "followup_due": "",
@@ -295,10 +322,53 @@ def main():
                 print(f"        fallback:   search link")
         return
 
+    # Rebuild, don't append. Appending let the tab rot: duplicate postings of
+    # one role, and roles that stopped qualifying when the rubric changed, both
+    # piled up forever. The tab is now exactly "roles worth an ask right now",
+    # plus every row Juhi has already acted on, which is never dropped.
     ws = sheets.get_referrals_tab()
-    added = sheets.append_rows_dedup(ws, rows, sheets.REFERRALS_COLUMNS, "job_id")
-    print(f"\n  Wrote {added} new role(s) to the Referrals tab.")
-    print("  Rows already there were left alone — nothing you have edited is lost.")
+    existing = sheets.get_all_rows_with_numbers(ws, formulas=True)
+
+    CARRY = ("note_to_send", "sent_1", "sent_2", "sent_rec", "followup_due",
+             "story_id", "drafted_on", "stale")
+    prior, touched = {}, []
+    for r in existing:
+        k = role_key(r.get("company", ""), r.get("title", ""))
+        if any((r.get(c, "") or "").strip() for c in ("sent_1", "sent_2", "sent_rec")):
+            touched.append((k, r))
+        # keep the richest prior copy of a role (the one with a draft)
+        if k not in prior or (r.get("note_to_send", "") or "").strip():
+            prior[k] = r
+
+    keep_keys = set()
+    for row in rows:
+        k = role_key(row.get("company", ""), row.get("title", ""))
+        keep_keys.add(k)
+        old = prior.get(k)
+        if old:
+            for c in CARRY:
+                if (old.get(c, "") or "").strip():
+                    row[c] = old[c]
+
+    # rows she has acted on survive even if the role no longer qualifies
+    for k, old in touched:
+        if k not in keep_keys:
+            keep_keys.add(k)
+            rows.append({c: old.get(c, "") for c in sheets.REFERRALS_COLUMNS})
+
+    def _score_of(r):
+        try: return float(r.get("score", 0) or 0)
+        except ValueError: return 0.0
+    rows.sort(key=lambda r: (r.get("first_degree_available") != "TRUE", -_score_of(r)))
+
+    removed = len(existing) - len(rows)
+    values = [sheets.REFERRALS_COLUMNS] + [
+        [str(r.get(c, "")) for c in sheets.REFERRALS_COLUMNS] for r in rows]
+    ws.clear()
+    ws.update(values=values, range_name="A1", value_input_option="USER_ENTERED")
+    print(f"\n  Referrals tab rebuilt: {len(rows)} role(s), one row each"
+          f"{f' ({removed} stale or disqualified row(s) cleared)' if removed > 0 else ''}.")
+    print("  Drafts, sent dates and anything you acted on were carried across.")
 
 
 def _label(formula: str) -> str:

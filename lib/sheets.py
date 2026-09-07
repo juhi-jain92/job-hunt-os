@@ -9,7 +9,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # Path to the service account key file
-CREDS_PATH = os.path.join(os.path.dirname(__file__), "credentials", "sheets_key.json")
+CREDS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "credentials", "sheets_key.json")
 SHEET_NAME  = "Job Hunt OS"
 OWNER_EMAIL = "juhijaindtu@gmail.com"  # sheet gets shared here on first create
 
@@ -34,6 +34,7 @@ COL_INDEX = {col: i + 1 for i, col in enumerate(COLUMNS)}
 
 # ---------- Referral engine tabs ----------
 
+LEDGER_TAB    = "Jobs"      # the job ledger; resolved by name, not position
 CONTACTS_TAB   = "Contacts"
 REFERRALS_TAB  = "Referrals"    # referral lane — one row per 7+ role
 NETWORKING_TAB = "Networking"   # networking lane — one row per cold prospect
@@ -57,7 +58,7 @@ CONTACTS_COLUMNS = [
 # tier is deliberately absent: every row here is already 7+ by construction.
 REFERRALS_COLUMNS = [
     "job_id", "title", "company", "location", "source", "posted_at",
-    "score", "notes",
+    "score", "notes", "job_url",
     "first_degree_available", "referrer_1", "referrer_1_owner",
     "referrer_2", "referrer_2_owner", "recruiter",
     "note_to_send", "fallback_contact",
@@ -268,11 +269,24 @@ def open_or_create_sheet():
     If the spreadsheet doesn't exist yet, creates it and shares it with OWNER_EMAIL.
     If the sheet is empty, writes the header row.
     """
-    sheet = _spreadsheet().sheet1
+    ss = _spreadsheet()
+    try:
+        sheet = ss.worksheet(LEDGER_TAB)
+    except gspread.WorksheetNotFound:
+        # Older sheets kept the ledger as the first tab. Fall back, but only
+        # onto a tab that is actually the ledger or is empty — never onto a
+        # hand-maintained tab that happens to sit in position one. prune_ledger
+        # calls clear() on whatever this returns.
+        sheet = ss.sheet1
 
-    # Write header if missing or if first cell isn't "job_id" (e.g. after a manual clear)
     existing = sheet.get_all_values()
-    if not existing or not existing[0] or existing[0][0] != "job_id":
+    header = existing[0] if existing else []
+    if header and header[0] != "job_id":
+        raise RuntimeError(
+            f"Refusing to use tab {sheet.title!r} as the job ledger: its first "
+            f"column is {header[0]!r}, not 'job_id'. Rename the ledger tab to "
+            f"{LEDGER_TAB!r} or move it back to the first position.")
+    if not header:
         sheet.insert_row(COLUMNS, 1, value_input_option="USER_ENTERED")
         print("  Wrote header row.")
 
@@ -348,11 +362,23 @@ def get_all_rows_with_numbers(sheet, formulas: bool = False) -> list:
         all_values = sheet.get_all_values()   # list of lists, header at index 0
     if not all_values:
         return []
+
+    def as_text(v):
+        # FORMULA rendering hands back native types: a checkbox arrives as a
+        # Python bool, a number as int/float. Every caller treats cells as
+        # strings ("TRUE", .strip(), .upper()), so normalize here rather than
+        # defending in each one.
+        if isinstance(v, bool):
+            return "TRUE" if v else "FALSE"
+        if v is None:
+            return ""
+        return v if isinstance(v, str) else str(v)
+
     headers = all_values[0]
     rows = []
     for i, vals in enumerate(all_values[1:], start=2):
         # Pad short rows so every header has a value
-        padded = vals + [""] * (len(headers) - len(vals))
+        padded = [as_text(v) for v in vals] + [""] * (len(headers) - len(vals))
         row = {headers[j]: padded[j] for j in range(len(headers))}
         row["_row_num"] = i
         rows.append(row)

@@ -16,7 +16,8 @@ Usage:
     python3 match_scorer.py --estimate     cost estimate, no scoring
     python3 match_scorer.py --preview 5    score 5, print JSON, write nothing
     python3 match_scorer.py --limit 20     score and write only 20
-    python3 match_scorer.py --rescore-below 7   re-score rows currently under 7
+    python3 -m stages.match_scorer --rescore-below 7   re-score rows under 7
+    python3 -m stages.match_scorer --rescore-all      re-price the whole ledger
                                           (user-owned statuses untouched)
     caffeinate -dims python3 match_scorer.py
 """
@@ -31,7 +32,7 @@ from datetime import datetime
 import anthropic
 from dotenv import load_dotenv
 
-import sheets
+from lib import sheets
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ API_KEY = os.getenv("ANTHROPIC_API_KEY")
 if not API_KEY or API_KEY == "your_key_here":
     sys.exit("ERROR: Set ANTHROPIC_API_KEY in your .env file.")
 
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _cfg = json.load(open(os.path.join(BASE, "config", "search_config.json")))["scorer_settings"]
 
 MODEL  = _cfg.get("model", "claude-sonnet-5")
@@ -171,12 +172,17 @@ Return ONLY a valid JSON object, no markdown fences, no prose:
               1 = at least one maps clearly.
               0 = none map (rare for a PM role; use sparingly).>,
 
-  "level":   <0-2 SENIORITY FIT.
-              2 = Senior PM, Staff PM, Principal PM, Lead PM, Group PM, Director of
-                  Product, Head of Product at a small company, Associate Director.
-              1 = "Product Manager" with no level stated, or Product Lead / Owner
-                  where scope is unclear. Also VP Product at a very small startup.
-              0 = APM, junior, or "entry level"; or VP/CPO at a large company.>,
+  "level":   <0-2 SENIORITY FIT. Be strict here; this one is a gate, not a
+              preference, and a wrong 2 puts a junior role in front of her.
+              2 = the title carries a seniority marker: Senior, Sr., Staff,
+                  Principal, Lead, Group PM, Director of Product, Head of
+                  Product, Associate Director, VP Product at a startup, or a
+                  founding/first-PM role.
+              1 = no seniority marker: plain "Product Manager", "Product Owner",
+                  "Technical Product Manager", or a title whose scope is
+                  genuinely unclear.
+              0 = explicitly junior (APM, Associate PM, entry level, intern) or
+                  far above the band (VP/CPO/SVP at a large company).>,
 
   "dealbreaker": <"" or ONE of these exact reasons, nothing else counts:
               "comp under floor" (posted top of range clearly under $200K total),
@@ -256,7 +262,10 @@ def _call_claude(prompt: str) -> dict:
     if raw.startswith("```"):
         raw = raw.split("```")[1]
         raw = raw[4:] if raw.startswith("json") else raw
-    return json.loads(raw.strip())
+    # strict=False tolerates literal newlines and tabs inside JSON strings,
+    # which the model emits in long 'reason' values. Without it each one costs
+    # two retries and two extra billed calls.
+    return json.loads(raw.strip(), strict=False)
 
 
 def score_job(job: dict):
@@ -290,6 +299,13 @@ def derive(result: dict, current_status: str) -> dict:
     score  = domain + ai + skills + level
 
     dealbreaker = str(result.get("dealbreaker", "") or "").strip()
+    # Seniority is a gate, not a dimension to be outvoted: a lenient domain and
+    # AI score can carry a plain "Product Manager" posting past 7, and she does
+    # not apply to those. Enforce it in Python so it cannot depend on the model
+    # remembering to say so.
+    if not dealbreaker and level <= 1:
+        dealbreaker = ("below her band" if level == 0
+                       else "no seniority marker in the title")
     skip = bool(dealbreaker) or score <= 6
 
     status = "low match" if skip else "ready to apply"
@@ -323,7 +339,7 @@ def _flag(name, default):
 ESTIMATE = "--estimate" in sys.argv
 PREVIEW  = _flag("--preview", 5)
 LIMIT    = _flag("--limit", 10)
-RESCORE_BELOW = _flag("--rescore-below", 7)
+RESCORE_BELOW = 11 if "--rescore-all" in sys.argv else _flag("--rescore-below", 7)
 
 
 def main():

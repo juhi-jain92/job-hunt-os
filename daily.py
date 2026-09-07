@@ -3,33 +3,41 @@ daily.py — The whole pipeline, one command, in order. Every stage is
 independent: a failure is logged and the next stage still runs, and the run
 ends with a one-screen summary of what landed and what didn't.
 
-    discover → prune (>7d) → score (capped) → referral match → networking queue
-             → draft notes → follow-ups & stale → Today view
+    file yesterday's sent marks → discover → prune (>7d) → score (capped)
+             → referral match → networking queue → draft notes
+             → follow-ups & stale → rebuild Today
 
 Same command locally and in the 5:30am GitHub Actions run.
 
 Usage:
     python3 daily.py                 everything
     python3 daily.py --no-spend      skip the two stages that cost money
-    python3 daily.py --from draft    start at a stage: discover|prune|score|match|network|draft|track|today
+    python3 daily.py --from draft    start at a stage: marks|discover|prune|score|match|network|draft|track|today
+
+Stages live in stages/ and run as modules (python3 -m stages.match_scorer) so
+that the repo root stays on the import path. Shared code is in lib/.
 """
 
+import os
 import subprocess
 import sys
 import time
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
 
 SCORE_CAP = 100      # ~60 cents worst case; keeps a bad day from becoming a bad bill
 DRAFTS_PER_DAY = 5   # per lane: 5 referral + 5 networking
 
 STAGES = [
-    ("discover", ["job_search.py"],                      False),
-    ("prune",    ["prune_ledger.py"],                    False),
-    ("score",    ["match_scorer.py", "--limit", str(SCORE_CAP)], True),
-    ("match",    ["referral_match.py"],                  False),
-    ("network",  ["networking_daily.py"],                False),
-    ("draft",    ["draft_notes.py", "--n", str(DRAFTS_PER_DAY)], True),
-    ("track",    ["outreach_tracker.py"],                False),
-    ("today",    ["today.py"],                           False),
+    ("marks",    ["-m", "stages.today", "--absorb-only"], False),
+    ("discover", ["-m", "stages.job_search"],            False),
+    ("prune",    ["-m", "stages.prune_ledger"],          False),
+    ("score",    ["-m", "stages.match_scorer", "--limit", str(SCORE_CAP)], True),
+    ("match",    ["-m", "stages.referral_match"],        False),
+    ("network",  ["-m", "stages.networking_daily"],      False),
+    ("draft",    ["-m", "stages.draft_notes", "--n", str(DRAFTS_PER_DAY)], True),
+    ("track",    ["-m", "stages.outreach_tracker"],      False),
+    ("today",    ["-m", "stages.today"],                 False),
 ]
 
 NO_SPEND = "--no-spend" in sys.argv
@@ -53,7 +61,7 @@ def main():
             continue
         print(f"\n{'═' * 60}\n  {name.upper()}  ·  {' '.join(cmd)}\n{'═' * 60}")
         t = time.time()
-        proc = subprocess.run([sys.executable, *cmd])
+        proc = subprocess.run([sys.executable, *cmd], cwd=ROOT)
         results.append((name, "ok" if proc.returncode == 0 else f"FAILED (exit {proc.returncode})",
                         time.time() - t))
 

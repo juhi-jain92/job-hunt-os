@@ -28,10 +28,10 @@ from datetime import datetime, timedelta
 import anthropic
 from dotenv import load_dotenv
 
-import sheets
+from lib import sheets
 
 load_dotenv()
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 _cfg = json.load(open(os.path.join(BASE, "config", "search_config.json")))
@@ -178,7 +178,7 @@ requests (channel linkedin_connect_note) must be under 280 characters total.
 
 def key_details() -> str:
     # Reuse the scorer's distilled resume so there is one source of truth.
-    import match_scorer  # import-safe: main() is guarded
+    from stages import match_scorer  # import-safe: main() is guarded
     return match_scorer.KEY_DETAILS
 
 

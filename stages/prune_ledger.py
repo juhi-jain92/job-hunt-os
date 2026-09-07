@@ -18,7 +18,7 @@ Usage:
 import sys
 from datetime import datetime, timedelta
 
-import sheets
+from lib import sheets
 
 KEEP_STATUSES = sheets.JOB_USER_STATUSES
 DRY_RUN = "--dry-run" in sys.argv

@@ -27,9 +27,9 @@ import sys
 from collections import Counter
 from datetime import datetime, timedelta
 
-import sheets
+from lib import sheets
 
-BASE = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(BASE, "config", "search_config.json")
 
 _cfg = {}

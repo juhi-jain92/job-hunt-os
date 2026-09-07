@@ -11,12 +11,13 @@ import time
 from collections import Counter
 import requests
 from dotenv import load_dotenv
-import sheets              # Google Sheets read/write helper
-import apify_sources       # Apify actor fetchers (VC portfolio, Wellfound)
-import greenhouse_sources  # Greenhouse public jobs board API
+from lib import sheets              # Google Sheets read/write helper
+from lib import apify_sources       # Apify actor fetchers (VC portfolio, Wellfound)
+from lib import greenhouse_sources  # Greenhouse public jobs board API
+from lib import ats_sources         # Ashby + Lever public job boards
 
 # ---------- 0. Load context store ----------
-_search_config    = json.loads(open(os.path.join(os.path.dirname(__file__), "config", "search_config.json")).read())
+_search_config    = json.loads(open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "search_config.json")).read())
 QUERIES           = _search_config.get("search_queries", [])
 TITLE_TERMS       = _search_config.get("title_filter_terms", [])
 DATE_POSTED_FILTER = _search_config.get("date_posted_filter", "week")
@@ -98,76 +99,82 @@ def normalize_jsearch(job: dict) -> dict:
     }
 
 
-# ---------- 3. Run JSearch ----------
-print(f"\n{'='*50}")
-print(f"JSearch — {len(QUERIES)} queries")
-print('='*50)
+def main():
+    # ---------- 3. Run JSearch ----------
+    print(f"\n{'='*50}")
+    print(f"JSearch — {len(QUERIES)} queries")
+    print('='*50)
 
-collected: list = []
-seen_ids:  set  = set()
+    collected: list = []
+    seen_ids:  set  = set()
 
-for query in QUERIES:
-    print(f"  Querying: {query!r} ...")
-    for job in fetch_jsearch(query):
-        jid = job.get("job_id")
-        if jid and jid not in seen_ids:
-            seen_ids.add(jid)
-            collected.append(normalize_jsearch(job))
-    print(f"    → running total: {len(collected)}")
-    time.sleep(1)
+    for query in QUERIES:
+        print(f"  Querying: {query!r} ...")
+        for job in fetch_jsearch(query):
+            jid = job.get("job_id")
+            if jid and jid not in seen_ids:
+                seen_ids.add(jid)
+                collected.append(normalize_jsearch(job))
+        print(f"    → running total: {len(collected)}")
+        time.sleep(1)
 
-print(f"\nJSearch total: {len(collected)} unique jobs")
+    print(f"\nJSearch total: {len(collected)} unique jobs")
 
-# ---------- 4. Run Apify sources ----------
-print(f"\n{'='*50}")
-print("Apify sources")
-print('='*50)
+    # ---------- 4. Run Apify sources ----------
+    print(f"\n{'='*50}")
+    print("Apify sources")
+    print('='*50)
 
-extra_sources = [greenhouse_sources.fetch_greenhouse_jobs()]
-if APIFY_TOKEN:
-    extra_sources = [apify_sources.fetch_vc_portfolio_jobs(),
-                     apify_sources.fetch_wellfound_jobs()] + extra_sources
-else:
-    print("  [Apify] no token — skipping Wellfound and VC portfolio sources")
+    extra_sources = [greenhouse_sources.fetch_greenhouse_jobs(),
+                     ats_sources.fetch_ats_jobs()]
+    if APIFY_TOKEN:
+        extra_sources = [apify_sources.fetch_vc_portfolio_jobs(),
+                         apify_sources.fetch_wellfound_jobs()] + extra_sources
+    else:
+        print("  [Apify] no token — skipping Wellfound and VC portfolio sources")
 
-for source_job_list in extra_sources:
-    for job in source_job_list:
-        jid = job.get("job_id")
-        if jid and jid not in seen_ids:
-            seen_ids.add(jid)
-            collected.append(job)
+    for source_job_list in extra_sources:
+        for job in source_job_list:
+            jid = job.get("job_id")
+            if jid and jid not in seen_ids:
+                seen_ids.add(jid)
+                collected.append(job)
 
-if not collected:
-    # An expired RapidAPI key or a Greenhouse outage looks exactly like a quiet
-    # day unless we say otherwise. Zero rows from every source is a failure.
-    sys.exit("[FATAL] discovery returned 0 jobs from every source — check "
-             "RAPIDAPI_KEY / quota and Greenhouse reachability.")
+    if not collected:
+        # An expired RapidAPI key or a Greenhouse outage looks exactly like a quiet
+        # day unless we say otherwise. Zero rows from every source is a failure.
+        sys.exit("[FATAL] discovery returned 0 jobs from every source — check "
+                 "RAPIDAPI_KEY / quota and Greenhouse reachability.")
 
-# ---------- 5. Pre-filter — title relevance ----------
+    # ---------- 5. Pre-filter — title relevance ----------
 
-from normalize import is_blocked
+    from lib.normalize import is_blocked
 
-def is_relevant(job: dict) -> bool:
-    if is_blocked(job.get("company", "")):
-        return False
-    title = (job.get("title") or "").strip().lower()
-    return any(term in title for term in TITLE_TERMS)
+    def is_relevant(job: dict) -> bool:
+        if is_blocked(job.get("company", "")):
+            return False
+        title = (job.get("title") or "").strip().lower()
+        return any(term in title for term in TITLE_TERMS)
 
 
-before    = len(collected)
-collected = [j for j in collected if is_relevant(j)]
-after     = len(collected)
+    before    = len(collected)
+    collected = [j for j in collected if is_relevant(j)]
+    after     = len(collected)
 
-print(f"\n{'='*50}")
-print(f"Pre-filter: {before} → {after} jobs  ({before - after} dropped)")
-print('='*50)
+    print(f"\n{'='*50}")
+    print(f"Pre-filter: {before} → {after} jobs  ({before - after} dropped)")
+    print('='*50)
 
-counts = Counter(job.get("source", "unknown") for job in collected)
-for source, count in sorted(counts.items(), key=lambda x: -x[1]):
-    print(f"  {source:<30} {count}")
+    counts = Counter(job.get("source", "unknown") for job in collected)
+    for source, count in sorted(counts.items(), key=lambda x: -x[1]):
+        print(f"  {source:<30} {count}")
 
-# ---------- 6. Append new jobs to sheet (ledger mode) ----------
-sheet = sheets.open_or_create_sheet()
-added = sheets.append_new_jobs(sheet, collected)
-already_in_sheet = after - added
-print(f"\nFound {added} new jobs out of {after} total fetched ({already_in_sheet} already in sheet)")
+    # ---------- 6. Append new jobs to sheet (ledger mode) ----------
+    sheet = sheets.open_or_create_sheet()
+    added = sheets.append_new_jobs(sheet, collected)
+    already_in_sheet = after - added
+    print(f"\nFound {added} new jobs out of {after} total fetched ({already_in_sheet} already in sheet)")
+
+
+if __name__ == "__main__":
+    main()
