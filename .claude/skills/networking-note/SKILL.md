@@ -30,16 +30,33 @@ personalizes the last 10% and sends it herself. Nothing is ever sent by you.
    distilled resume. Metrics must come from there or the story bank verbatim —
    never invent or round up.
 
-## Output format (brief bullets, in this order)
+## Output format — 4 bullets, under 150 words
 
 ```
-• [Their product, one line — proves she understands what they build]
-• [Fresh specific observation: news/problem — the personalization hook]
-• [Her matching story in one line, with ONE metric — how it solves their problem]
-• [The ask: excited to be considered for a product role / a 15-min conversation]
+Subject: <their specific thing> — <her ask>        (email only, <60 chars)
+
+Hi <name>,
+
+<One line: what she is writing about + the fresh observation, same breath.>
+
+<One short lead-in ending in a colon:>
+
+• <what she built — mechanism, not adjective>
+• <the second piece of evidence>
+• <the metric, copied verbatim from the story's impact line>
+• <one line of prior scale/context>
+
+<One-line ask. "Worth 15 minutes?" is enough.>
+
+Juhi Jain
+linkedin.com/in/juhi-jain-pm · juhi-jain92.github.io
 ```
 
-3 to 4 bullets, ≤ 280 words total. LinkedIn connection notes: ≤ 280 CHARACTERS.
+Hard limits: **4 bullets maximum in the entire email**, one line each. Under 150
+words. No paragraph longer than two lines. No self-adjectives (passionate,
+proven, excited to bring). Write like a peer who noticed something, not an
+applicant. LinkedIn connection requests are one sentence under 280 characters —
+no bullets, no greeting, no signature.
 
 ## Guardrails (from the PRD, non-negotiable)
 

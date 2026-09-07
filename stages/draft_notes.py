@@ -42,7 +42,7 @@ EFFORT = _out.get("effort", "high")
 STORY_BANK   = os.path.join(BASE, "resume", "story-bank.md")
 STORY_DIGEST = os.path.join(BASE, "config", "story_digest.json")
 ROTATION_DAYS = 7
-MAX_WORDS = 280          # email / DM
+MAX_WORDS = 150          # email / DM — brevity is the format, enforced not requested
 MAX_CHARS_CONNECT = 280  # LinkedIn connection request
 
 PREVIEW = "--preview" in sys.argv
@@ -158,21 +158,33 @@ problem behind it. A note that could have been written last year convinces no on
 Then pick exactly ONE story from the STORY BANK below whose earned secret speaks
 to that problem. Do not pick a story listed under DO NOT USE (rotation).
 
+FORMAT — the whole note, in this order, nothing else:
+  1. One opening line: what she is writing about, and the fresh observation, in
+     the same breath. Name the specific thing they shipped or face.
+  2. One short lead-in line ending in a colon.
+  3. AT MOST 4 bullets, each starting "• ", each ONE line, each evidence not
+     claim: what she built, the mechanism, the number. One bullet carries a
+     metric copied verbatim from the story's impact line.
+  4. One closing line that is the ask. Short. "Worth 15 minutes?" is enough.
+
+Hard limits: under 150 words total, never more than 4 bullets, no paragraph
+longer than two lines, no adjectives about herself ("passionate", "proven",
+"excited to bring"). Write like a peer who noticed something, not an applicant.
+Connection requests (channel linkedin_connect_note) are a single sentence under
+280 characters — no bullets, no greeting, no signature.
+
 Return ONLY JSON, no fences:
 {
   "story_id": "S0xx",
   "hook": "<the one fresh, specific observation about them, one sentence>",
-  "note": "<4 short bullets, each starting with '• ', in this order:
-           their product (proves understanding) / the fresh observation /
-           her matching story in one line with ONE metric copied verbatim from
-           the story's impact line / the ask: excited to be considered for a
-           product role, or a 15-minute conversation>"
+  "subject": "<for email only: their specific thing + her ask, under 60 chars.
+              Empty string for LinkedIn.>",
+  "note": "<the note in the FORMAT above, newlines between parts>"
 }
 
 Hard rules: metrics verbatim from the impact line only, never invented or rounded.
 Never claim production coding, LLM fine-tuning, RAG hands-on, or seniority above
-Associate Director. Warm referral asks are short and specific; connection
-requests (channel linkedin_connect_note) must be under 280 characters total.
+Associate Director.
 """.strip()
 
 
@@ -311,6 +323,7 @@ def main():
         else:
             sheets.batch_update_cells(net_ws, [{"row_num": r["_row_num"], "values": {
                 "draft_body": draft["note"], "personalization_hook": draft["hook"],
+                "subject": draft.get("subject", ""),
                 "story_id": draft["story_id"], "drafted_on": today}}],
                 sheets.NETWORKING_COLUMNS)
             net_updates.append(r["_row_num"])
