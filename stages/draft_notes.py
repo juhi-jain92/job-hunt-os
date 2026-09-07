@@ -42,6 +42,7 @@ EFFORT = _out.get("effort", "high")
 STORY_BANK   = os.path.join(BASE, "resume", "story-bank.md")
 STORY_DIGEST = os.path.join(BASE, "config", "story_digest.json")
 ROTATION_DAYS = 7
+ROTATION_MIN_FREE = 4   # stop excluding once the bank is nearly spent
 MAX_WORDS = 150          # email / DM — brevity is the format, enforced not requested
 MAX_CHARS_CONNECT = 280  # LinkedIn connection request
 
@@ -134,14 +135,28 @@ def pick_rows(n: int):
     # n per lane: the referral block and the networking block are separate
     # 20-minute sessions, so one lane must never starve the other.
     picks = [("referral", r) for r in ref_c[:n]] + [("networking", r) for r in net_c[:n]]
-    used_recently = recent_story_ids(ref + net)
+    used_recently = recent_story_ids(ref + net, total_stories=len(load_digest()))
     return picks, ref_ws, net_ws, used_recently
 
 
-def recent_story_ids(rows) -> set:
+def recent_story_ids(rows, total_stories: int = 13) -> set:
+    """
+    Stories spent inside the rotation window. If that leaves fewer than
+    ROTATION_MIN_FREE stories available, the window is releasing the oldest
+    ones instead: a saturated bank must not block every draft, which is what
+    happened on 2026-09-07 when six companies got no note at all.
+    """
     cutoff = (datetime.now() - timedelta(days=ROTATION_DAYS)).strftime("%Y-%m-%d")
-    return {r.get("story_id", "") for r in rows
-            if (r.get("story_id", "") or "").strip() and (r.get("drafted_on", "") or "") >= cutoff}
+    used = [(r.get("drafted_on", "") or "", r.get("story_id", ""))
+            for r in rows
+            if (r.get("story_id", "") or "").strip() and (r.get("drafted_on", "") or "") >= cutoff]
+    ids = {sid for _, sid in used}
+    if total_stories - len(ids) >= ROTATION_MIN_FREE:
+        return ids
+    # Release oldest-used stories until enough are free again.
+    by_recency = sorted({sid: d for d, sid in sorted(used)}.items(), key=lambda kv: kv[1], reverse=True)
+    keep = total_stories - ROTATION_MIN_FREE
+    return {sid for sid, _ in by_recency[:max(0, keep)]}
 
 
 # ── Drafting ──────────────────────────────────────────────────────────────────
