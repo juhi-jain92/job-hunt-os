@@ -249,7 +249,7 @@ def prospect_id(company: str, line: str, n: int) -> str:
     return "o_" + hashlib.sha1(seed.encode()).hexdigest()[:16]
 
 
-DEAD_AFTER_DAYS = 3
+DEAD_AFTER_DAYS = 2
 
 
 def drop_dead_prospects() -> int:
@@ -427,6 +427,11 @@ def main():
                 })
 
             # One alumni route per line — the warmest cold path available.
+            # Only when nobody was named here: a search-link row can never be
+            # drafted, so adding one alongside real names is pure clutter.
+            if any(r["contact_name"] and r.get("company_norm") == pick["company_norm"]
+                   for r in rows):
+                continue
             rows.append({
                 "outreach_id": prospect_id(company, line, 99),
                 "due_date": today,
