@@ -248,6 +248,11 @@ def hunter_domain_search(domain: str = "", company: str = "") -> dict:
         ],
     }
 
+
+HUNTER_VERIFY = "https://api.hunter.io/v2/email-verifier"
+CONFIDENCE_TRUSTED = 80  # indexed emails at/above this skip the verifier
+
+
 def hunter_verify(email: str) -> dict:
     """
     One verification credit (100/month on the free plan), so callers only
