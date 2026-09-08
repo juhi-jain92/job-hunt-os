@@ -53,35 +53,80 @@ Then explain the miss honestly. The usual causes, in order:
 If the company has a watchable board, offer to add it to
 `config/target_companies.json` plus its domain in `config/company_meta.json`.
 
-## 3. Find who to contact
+## 3. Find who to contact, in this order
+
+Work the ladder and stop at the first rung that produces a name. Never invent
+an address; never hand her a search link when a verified address was reachable.
+
+**Rung 1, first degree.** Her own connections export.
+
+```bash
+grep -i -h "<company>" data/connections/*.csv | head -20
+```
+
+A hit here outranks everything below it. That is a referral ask, not a cold email.
+
+**Rung 2, Hunter domain search.**
 
 ```python
 from lib.contact_extract import hunter_domain_search
-r = hunter_domain_search(domain="acme.com")   # already merges department slices
+r = hunter_domain_search(domain="acme.com")   # merges the department slices
 ```
 
-Rank product leadership first: Head of Product, VP Product, CPO, Director of
-Product, Principal, Staff, GPM. Founders and CTO at companies under ~100 people.
-If Hunter returns only sales and ops, say so and fall back to a LinkedIn
-people-search link. Never invent an address. Flag confidence under 85%.
+**Hunter has no "product" department.** The taxonomy is executive, it, finance,
+management, sales, legal, support, hr, marketing, communication, design,
+operations. Product people land under management, executive, or occasionally
+it. Searching for "product management" returns nothing; do not keep trying
+variants. The merged slices already cover it.
 
-At a large company (Google, Reddit, Amazon) Hunter is close to useless and the
-right route is a LinkedIn search for the specific org, or her own network.
+**Rung 3, derive the pattern and verify.** When Hunter returns only comms, HR
+and support (normal at any large retailer or enterprise), read the pattern off
+the addresses it did return, find the person's name on LinkedIn or in press,
+construct the address, and verify it before handing it over:
 
-## 4. Call the tailoring question
+```bash
+curl -s "https://api.hunter.io/v2/email-verifier?email=X&api_key=$HUNTER_API_KEY"
+```
 
-Default answer is **no**. She has one resume and it leads with AI. Tailor only
-when the role's domain is her adtech decade rather than her AI work, and then
-the change is a reordering, not a rewrite: move the $400M programmatic and
-identity and monetization lines above the Vectorial block. Say explicitly which
-lines move. Never suggest inventing or restating a metric.
+Hand over only `status: valid` with `smtp_check: true` and `accept_all: false`.
+Record a confirmed pattern in `config/company_meta.json` as `email_pattern`
+(`{f}{last}` for jsmith@, `{first}.{last}` for john.smith@) so the next role at
+that company costs nothing.
 
-## 5. Write the outreach
+**Rung 4, LinkedIn second degree**, for people whose name she must find herself:
+`https://www.linkedin.com/search/results/people/?keywords=<company>%20<team>&network=%5B%22S%22%5D`
+Second degree, so mutual connections are visible and an intro path exists.
 
-Follow `.claude/skills/networking-note/SKILL.md` exactly: 4 bullets maximum,
-under 150 words, no em dashes ever, one verbatim metric from the story bank,
-LinkedIn notes under 300 characters. Rotate stories across a batch; do not
-spend the same story on two companies in one reply.
+**Press is a contact source, not just a hook.** One search on the company's ads
+or product leadership routinely names the person Hunter cannot, and their
+background is usually the sharpest thing to open on.
+
+## 4. Which resume version
+
+Defer to `.claude/skills/resume-tailor/SKILL.md`. Answer in one line: Version A
+or Version B, and either "no edits" or at most three changed lines. Never more.
+
+## 5. Write the outreach, always
+
+**This step is not optional and is never replaced by advice about who to
+contact.** Every role decoded ends with drafts she can paste and send tonight.
+Produce all of:
+
+- **A cold email** to the best contact: subject under 60 characters, at most 4
+  bullets, under 150 words, one verbatim story-bank metric, closing ask.
+- **A LinkedIn note** to the same person, under 300 characters, no bullets, no
+  greeting block, no signature.
+- **A second LinkedIn note** for the hiring manager or team lead she must find
+  herself, with the search link and a `[name]` placeholder.
+- **A backup contact** with a one-line rule for when to use it (usually: no
+  reply in ten days, same email, different subject).
+
+Where a first-degree connection exists, the first draft is a referral ask
+instead of a cold email, and it asks for the referral explicitly.
+
+Follow `.claude/skills/networking-note/SKILL.md` for the format. No em dashes
+anywhere. Rotate stories across a batch; never spend one story on two companies
+in the same reply.
 
 ## Output shape
 
