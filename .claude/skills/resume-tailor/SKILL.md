@@ -1,56 +1,97 @@
 ---
 name: resume-tailor
-description: Tailor Juhi's resume for a specific role, or validate a version she tailored elsewhere (TrueUp, Teal, an LLM). Use when she asks how to personalise her resume, whether to tailor for a role, or asks to check a tailored version before sending.
+description: Pick which of Juhi's two resume versions to send, decide whether a role needs any edit at all, handle ATS keyword gaps, and validate a version tailored elsewhere (TrueUp, Teal, an LLM). Use when she pastes a JD and asks which version, whether to tailor, or asks to check a tailored resume before sending.
 ---
 
 # Resume Tailor
 
-One master document, small reorderings, never a rewrite. She edits her own
-Google Doc and exports the PDF, so the formatting stays hers. Never generate a
-replacement PDF or docx unless she explicitly asks: a near-miss on her layout
-looks worse than no tailoring.
+She has two documents and keeps two documents. Tailoring is reordering inside
+one of them, never a rewrite, and the default answer is "no edits, send it."
+She has said plainly she cannot spend hours per application. Protect that.
 
-## First: does this role even need it?
+**Version A, AI-native.** Title leads "AI-native Product Leader"; Core Skills
+lead Applied AI; the LG Ads AD block leads AI Portfolio Strategy.
 
-Default is **no**. Tailor only when the role hires for the adtech decade rather
-than the AI work. Test: does the JD's required-qualifications block name
-advertising, measurement, marketplace, identity, or trust and safety before it
-names AI? If yes, tailor. If the role leads with AI, agents, or evals, send it
-as is; the resume already leads there.
+**Version B, AdTech.** Title leads "Programmatic & CTV Product Leader"; Core
+Skills lead Ad Tech Domain; the AD block leads Identity Infrastructure, then
+Product Vision, then GDPR.
 
-## The five levers, in order of effect
+## Step 1: which version
 
-Her resume structure: title line, summary paragraph, CORE SKILLS (four rows),
-PROFESSIONAL EXPERIENCE (Vectorial, LG Ads AD, LG Ads Senior PM, Alphonso, EXL),
-AI PROJECTS, EDUCATION.
+Read the JD's **required qualifications** block, not the blurb. Whichever comes
+first wins:
 
-1. **Title line.** Default is "AI-native Product Leader | 0-to-1 Products |
-   Programmatic Advertising, CTV & Applied AI". For an adtech-first role, lead
-   with the domain instead of AI-native. Reordering only, no new claims.
-2. **CORE SKILLS row order.** Default is Applied AI, Product Leadership, Ad Tech
-   Domain, Technical Fluency. For adtech-first roles move Ad Tech Domain to row
-   one. This is the single highest-leverage edit: it is what a keyword screen and
-   a six-second human scan both hit.
-3. **Bullet order inside the LG Ads AD role.** Six bullets exist: AI Portfolio
-   Strategy, Evals/Guardrails/HITL, AI Architecture Judgment, Product Vision,
-   Identity Infrastructure, GDPR. Promote the two or three that match the JD's
-   own words. Do not delete the others.
-4. **Summary paragraph, first clause only.** Swap which half leads. The metrics
-   stay identical.
-5. **AI PROJECTS section.** Keep it for AI roles. For a pure adtech role it can
-   move below Education, never deleted.
+- Advertising, measurement, attribution, identity, marketplace, retail media,
+  supply or demand, trust and safety, ads policy: **Version B**
+- AI, agents, LLMs, evals, ML platform, applied AI: **Version A**
+- Genuinely both, or neither: **Version B**. It reads as a domain operator who
+  also ships AI, which is the truer and rarer story.
+
+## Step 2: does it need any edit
+
+Almost always no. Say so in one line and move on.
+
+Only two things justify an edit, and each is capped:
+
+**a) The lead bullet is buried.** If one bullet in the LG Ads AD block is
+obviously *the* job (Evals/Guardrails/HITL for an ads-review role, Identity for
+an identity role, GDPR for a privacy role), move it to position one. One cut
+and paste.
+
+**b) A hard-required literal term never appears in the document.** See ATS below.
+One line added to a Core Skills row.
+
+**Hard cap: three changed lines per role.** If a JD seems to need more than
+three, the answer is not more tailoring, it is that the role is a weak fit or
+the wrong version was picked. Say that instead.
+
+## ATS: what actually matters
+
+Most of what is said about ATS optimization is false and expensive. What is
+true:
+
+- **Greenhouse, Ashby, Lever do not auto-reject on a keyword score.** They store
+  the resume and let a recruiter search it. Keywords matter for whether she
+  surfaces in that search, not for a robot rejection.
+- **Workday, iCIMS and Taleo parse harder and gate on knockout questions.**
+  Chewy, most large retailers, and most enterprises are Workday. The knockout
+  questions (years of experience, work authorization, location, salary) decide
+  more than the resume parse does. Answer those carefully; do not rewrite the
+  resume to beat a parser.
+- **The only ATS edit worth making is the literal-term fix.** If the JD names a
+  hard requirement in words her resume never uses ("retail media", "sponsored
+  products", "incrementality", "media mix modeling", "ads policy enforcement"),
+  and she genuinely has the experience under a different name, add that exact
+  term to the matching Core Skills row. One line. Never invent the experience
+  to justify the term.
+- **Her document already parses cleanly.** Single column, standard section
+  headings, no tables, no text boxes, no headers or footers, real text not
+  images. Nothing about format needs changing, ever. Do not suggest stripping
+  formatting, removing bullets, or a "plain text ATS version."
 
 ## Never touch
 
-Metrics, dates, titles, company names, the honest-limits reality. If a JD asks
-for something she does not have, the answer is the gap script in her outreach,
-not a resume edit.
+Metrics, dates, titles, company names, employer names, the honest limits. A
+requirement she does not meet is handled in outreach and interviews, not by
+editing the resume.
+
+## Producing the edits
+
+She edits her own Google Doc and exports. Never generate a replacement PDF or
+docx unless she asks: a near-miss on her layout looks worse than no tailoring.
+
+Give each change as a copy-paste block: the exact current text, then the exact
+replacement. Reorderings are stated as cut and paste with the new order listed,
+never as retyped text. No prose explanation above three lines.
 
 ## Validating a version tailored elsewhere
 
-Run this checklist against the accuracy flags in the `juhi-job-strategy` skill's
-`references/profile.md`. Auto-tailoring tools violate these routinely because
-they mirror the JD's language back.
+Auto-tailoring tools mirror the JD's language back into the summary, where no
+bullet can contradict it. That is where their failures live, so read the summary
+line by line against the bullets before anything else.
+
+Check against the honest limits in `stages/match_scorer.py` (KEY_DETAILS) and
+the story bank:
 
 | Check | Fails if the document says |
 |---|---|
@@ -60,14 +101,12 @@ they mirror the JD's language back.
 | Multi-agent | multi-agent claims attached to LG Ads work (Vectorial only) |
 | Portfolio projects | Job Hunt OS / ThinkOS / ContractIQ described as shipped commercial products, with users or revenue |
 | Diagnostic agent | called a "chatbot" or "RAG chatbot" rather than deterministic retrieval with LLM intent routing |
+| Scope redefinition | the $400M business described as something other than demand, supply, identity and monetisation |
+| Counts | a count of systems or workflows recharacterized so all of them match the JD (three workflows are ad review, multimodal generation, diagnostics; only one is risk-routing HITL) |
 | Metrics | any number not traceable to the story bank or resume verbatim |
-| Em dashes | any em dash or en dash anywhere |
+| Self-adjectives | "known for", "proven", "passionate", "results-driven" |
+| Em dashes | any em dash or en dash in prose |
 
-Report line by line: quote the offending text, name which flag it breaks, give
-the honest replacement. Approve only when every check passes.
-
-## Output shape
-
-For a tailoring request: name the role, say tailor or send as is, then list the
-specific edits as "move X above Y" with the exact current text. Under ten lines.
-She should be able to make every edit in two minutes without reading prose.
+Report line by line: quote the offending text, name the flag, give the honest
+replacement. Lead with the two or three that actually matter; do not hand her a
+report longer than the resume.
