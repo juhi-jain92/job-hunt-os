@@ -28,6 +28,12 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 SCORE_CAP = 100      # ~60 cents worst case; keeps a bad day from becoming a bad bill
 DRAFTS_PER_DAY = 5   # per lane: 5 referral + 5 networking
 
+# Drafting is PAUSED (2026-09-07, Juhi's call). It was the pipeline's whole cost
+# centre: effort high, 4000 max_tokens, and three billed web searches per note
+# whose results re-enter context on every turn of the tool loop. She writes the
+# notes herself now. Flip to True to bring it back; nothing else has to change.
+DRAFTING_ENABLED = False
+
 STAGES = [
     ("marks",    ["-m", "stages.today", "--absorb-only"], False),
     ("discover", ["-m", "stages.job_search"],            False),
@@ -35,7 +41,7 @@ STAGES = [
     ("score",    ["-m", "stages.match_scorer", "--limit", str(SCORE_CAP)], True),
     ("match",    ["-m", "stages.referral_match"],        False),
     ("network",  ["-m", "stages.networking_daily"],      False),
-    ("draft",    ["-m", "stages.draft_notes", "--n", str(DRAFTS_PER_DAY)], True),
+    ("draft",    ["-m", "stages.draft_notes", "--n", str(DRAFTS_PER_DAY)], True),  # gated on DRAFTING_ENABLED
     ("track",    ["-m", "stages.outreach_tracker"],      False),
     ("today",    ["-m", "stages.today"],                 False),
 ]
@@ -56,6 +62,9 @@ def main():
     results = []
     t0 = time.time()
     for name, cmd, spends in STAGES[names.index(start):]:
+        if name == "draft" and not DRAFTING_ENABLED:
+            results.append((name, "paused (DRAFTING_ENABLED=False)", 0))
+            continue
         if spends and NO_SPEND:
             results.append((name, "skipped (--no-spend)", 0))
             continue

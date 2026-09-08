@@ -1,5 +1,5 @@
 """
-today.py — The only tab Juhi opens. Every drafted, unsent, non-stale row.
+today.py — The only tab Juhi opens. Every unsent, non-stale row worth acting on.
 
 Each row carries the job link (what the role actually is), the contact link
 (who to send it to), the draft, and a `sent` cell she fills in right here.
@@ -115,14 +115,18 @@ def absorb_marks() -> int:
     return n
 
 
+# Drafting is paused, so a row no longer has to carry a note to be worth doing:
+# Today lists who to write to and why, and Juhi writes it herself. Capped so the
+# tab stays a 20-minute block rather than a backlog.
+TODAY_CAP = 10
+
+
 def collect() -> list:
     ref = sheets.get_all_rows_with_numbers(sheets.get_referrals_tab(), formulas=True)
     net = sheets.get_all_rows_with_numbers(sheets.get_networking_tab())
 
     out = []
     for r in ref:
-        if not (r.get("note_to_send", "") or "").strip():
-            continue
         if (r.get("stale", "") or "").upper() == "TRUE":
             continue
         if any((r.get(k, "") or "").strip() for k in ("sent_1", "sent_2", "sent_rec")):
@@ -143,10 +147,10 @@ def collect() -> list:
         })
 
     for r in net:
-        if not (r.get("draft_body", "") or "").strip():
-            continue
         if (r.get("status", "") or "").upper() != "PROSPECT":
             continue
+        if not (r.get("contact_name", "") or "").strip():
+            continue   # nameless prospect: nothing to write to
         out.append({
             "lane": "networking", "company": r.get("company_display", ""),
             "who": r.get("contact_name", "") or "(pick from link)",
@@ -160,7 +164,7 @@ def collect() -> list:
         })
 
     out.sort(key=lambda x: x["_sort"])
-    return out
+    return out[:TODAY_CAP]
 
 
 def main():
@@ -174,7 +178,7 @@ def main():
     print(f"\n  TODAY — {datetime.now():%a %b %d} — {len(rows)} row(s) ready to send "
           f"({warm} referral, {len(rows) - warm} networking)\n")
     if not rows:
-        print("  Nothing drafted yet. Run: python3 -m stages.draft_notes\n")
+        print("  Nothing queued. No qualifying roles and no named prospects.\n")
     for i, r in enumerate(rows, 1):
         print(f"  {i}. [{r['lane']}] {r['company']} → {r['who']}")
         print(f"     why:  {r['why_them'][:100]}")
