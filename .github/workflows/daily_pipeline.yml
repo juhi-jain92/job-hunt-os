@@ -2,10 +2,13 @@ name: Daily Pipeline
 
 # One run, every morning, in order: discover → score (capped) → referral match
 # → networking queue → draft notes → follow-ups & stale → Today view.
-# 12:30 UTC = 5:30am Pacific (daylight). Nothing here sends anything.
+# 11:07 UTC = 4:07am Pacific (daylight). Nothing here sends anything.
+# The odd minute is deliberate: scheduled runs on shared runners queue behind
+# every workflow set to :00 and :30 on a round hour, which pushed this one four
+# to five hours late every day. Off-peak offsets land within minutes.
 on:
   schedule:
-    - cron: '30 12 * * *'
+    - cron: '07 11 * * *'
   workflow_dispatch:
 
 jobs:
