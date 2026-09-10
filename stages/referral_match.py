@@ -24,6 +24,7 @@ Usage:
     python3 referral_match.py --allow-fuzzy
 """
 
+import re
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -101,6 +102,23 @@ def qualifies(row: dict, min_score: int) -> bool:
         return float(row.get("score", "") or 0) >= min_score
     except ValueError:
         return False
+
+
+OVERSEAS = (
+    "singapore", "germany", "berlin", "munich", "united kingdom", " uk", "london",
+    "india", "bangalore", "bengaluru", "hyderabad", "canada", "toronto", "vancouver",
+    "australia", "sydney", "melbourne", "netherlands", "amsterdam", "france", "paris",
+    "ireland", "dublin", "spain", "madrid", "barcelona", "poland", "warsaw", "japan",
+    "tokyo", "hong kong", "israel", "tel aviv", "brazil", "mexico", "europe", "emea",
+    "apac", "latam", "sweden", "stockholm", "switzerland", "zurich", "portugal", "lisbon",
+)
+
+
+def _overseas(location: str) -> bool:
+    """A posting whose location names a non-US market. Everything else,
+    including bare 'Remote' and 'AMER', is treated as reachable from Seattle."""
+    loc = (location or "").lower()
+    return any(re.search(rf"\b{re.escape(m.strip())}\b", loc) for m in OVERSEAS)
 
 
 def parse_posted(value: str):
@@ -196,8 +214,10 @@ def main():
     if FRESH_ONLY:
         eligible = [r for r in eligible
                     if (hours_old(r.get("posted_at", "")) or 1e9) <= FRESH_HOURS]
-    # The same role arrives from several sources under different job_ids.
-    # Keep the best-scoring copy of each so the lane shows one row per role.
+    # The same role arrives from several sources under different job_ids, and
+    # often under several locations. Keep one copy per role: a US or remote
+    # posting beats an overseas one, then the best score. Score alone let a
+    # Singapore copy scoring 9 hide the San Francisco copy of the same JD.
     by_role = {}
     for r in eligible:
         k = role_key(r.get("company", ""), r.get("title", ""))
@@ -205,7 +225,9 @@ def main():
         def _s(x):
             try: return float(x.get("score", 0) or 0)
             except ValueError: return 0.0
-        if prev is None or _s(r) > _s(prev):
+        def _rank(x):
+            return (not _overseas(x.get("location", "")), _s(x))
+        if prev is None or _rank(r) > _rank(prev):
             by_role[k] = r
     dropped = len(eligible) - len(by_role)
     eligible = list(by_role.values())
