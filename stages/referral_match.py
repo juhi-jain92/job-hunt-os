@@ -254,7 +254,8 @@ def main():
             "job_url": job.get("url", ""),
             "first_degree_available": "TRUE" if people else "FALSE",
             "note_to_send": "",
-            "sent_1": "", "sent_2": "", "sent_rec": "", "followup_due": "",
+            "sent_1": "", "sent_2": "", "sent_rec": "", "applied": "",
+            "followup_due": "",
         }
 
         for i in range(PEOPLE_SLOTS):
@@ -329,12 +330,12 @@ def main():
     ws = sheets.get_referrals_tab()
     existing = sheets.get_all_rows_with_numbers(ws, formulas=True)
 
-    CARRY = ("note_to_send", "sent_1", "sent_2", "sent_rec", "followup_due",
-             "story_id", "drafted_on", "stale")
+    CARRY = ("note_to_send", "sent_1", "sent_2", "sent_rec", "applied",
+             "followup_due", "story_id", "drafted_on", "stale")
     prior, touched = {}, []
     for r in existing:
         k = role_key(r.get("company", ""), r.get("title", ""))
-        if any((r.get(c, "") or "").strip() for c in ("sent_1", "sent_2", "sent_rec")):
+        if any((r.get(c, "") or "").strip() for c in ("sent_1", "sent_2", "sent_rec", "applied")):
             touched.append((k, r))
         # keep the richest prior copy of a role (the one with a draft)
         if k not in prior or (r.get("note_to_send", "") or "").strip():
@@ -369,6 +370,7 @@ def main():
     print(f"\n  Referrals tab rebuilt: {len(rows)} role(s), one row each"
           f"{f' ({removed} stale or disqualified row(s) cleared)' if removed > 0 else ''}.")
     print("  Drafts, sent dates and anything you acted on were carried across.")
+    sheets.strike_applied_rows(ws)
 
 
 def _label(formula: str) -> str:

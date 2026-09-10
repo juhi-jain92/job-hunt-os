@@ -62,7 +62,7 @@ REFERRALS_COLUMNS = [
     "first_degree_available", "referrer_1", "referrer_1_owner",
     "referrer_2", "referrer_2_owner", "recruiter",
     "note_to_send", "fallback_contact",
-    "sent_1", "sent_2", "sent_rec", "followup_due",
+    "sent_1", "sent_2", "sent_rec", "applied", "followup_due",
     "story_id", "drafted_on", "stale",
 ]
 
@@ -189,6 +189,56 @@ def get_contacts_tab():
 
 def get_referrals_tab():
     return open_or_create_tab(REFERRALS_TAB, REFERRALS_COLUMNS)
+
+
+def strike_applied_rows(ws=None) -> bool:
+    """
+    Grey and strike through any Referrals row where `applied` carries a date.
+
+    A conditional-format rule rather than cell formatting on purpose: it fires
+    the moment Juhi types the date, with no pipeline run in between, and it
+    survives the daily rebuild that clears the tab. Idempotent, so callers can
+    run it every day without stacking duplicate rules.
+    """
+    ws = ws or get_referrals_tab()
+    col = REFERRALS_COLUMNS.index("applied")
+    formula = f"=${_a1_col(col)}2<>\"\""
+
+    existing = ws.spreadsheet.fetch_sheet_metadata().get("sheets", [])
+    for sh in existing:
+        if sh["properties"]["sheetId"] != ws.id:
+            continue
+        for rule in sh.get("conditionalFormats", []):
+            cond = rule.get("booleanRule", {}).get("condition", {})
+            vals = cond.get("values", [{}])
+            if vals and vals[0].get("userEnteredValue") == formula:
+                return False   # already installed
+
+    ws.spreadsheet.batch_update({"requests": [{"addConditionalFormatRule": {
+        "index": 0,
+        "rule": {
+            "ranges": [{"sheetId": ws.id, "startRowIndex": 1,
+                        "startColumnIndex": 0,
+                        "endColumnIndex": len(REFERRALS_COLUMNS)}],
+            "booleanRule": {
+                "condition": {"type": "CUSTOM_FORMULA",
+                              "values": [{"userEnteredValue": formula}]},
+                "format": {"textFormat": {
+                    "strikethrough": True,
+                    "foregroundColor": {"red": .6, "green": .6, "blue": .6}}},
+            },
+        },
+    }}]})
+    return True
+
+
+def _a1_col(idx: int) -> str:
+    """0-based column index to its A1 letter(s)."""
+    s, idx = "", idx + 1
+    while idx:
+        idx, rem = divmod(idx - 1, 26)
+        s = chr(65 + rem) + s
+    return s
 
 
 def get_networking_tab():

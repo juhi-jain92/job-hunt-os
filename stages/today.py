@@ -131,6 +131,8 @@ def collect() -> list:
             continue
         if any((r.get(k, "") or "").strip() for k in ("sent_1", "sent_2", "sent_rec")):
             continue
+        if (r.get("applied", "") or "").strip():
+            continue   # applied: the role is handled, whatever happened with the ask
         who = _label(r.get("referrer_1", "")) or _label(r.get("recruiter", "")) \
             or _label(r.get("fallback_contact", "")) or "hiring manager (search link)"
         contact = _url(r.get("referrer_1", "")) or _url(r.get("recruiter", "")) \
