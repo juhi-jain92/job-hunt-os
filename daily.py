@@ -34,6 +34,12 @@ DRAFTS_PER_DAY = 5   # per lane: 5 referral + 5 networking
 # notes herself now. Flip to True to bring it back; nothing else has to change.
 DRAFTING_ENABLED = False
 
+# Today is PAUSED (2026-09-15, Juhi's call). She is working the Referrals tab
+# directly to clear a backlog, and a Today rebuild reshuffling ten rows a day
+# under her is noise. The "marks" stage still runs, so anything she dates in
+# Today's sent column is still absorbed. Flip to True to bring it back.
+TODAY_ENABLED = False
+
 STAGES = [
     ("marks",    ["-m", "stages.today", "--absorb-only"], False),
     ("discover", ["-m", "stages.job_search"],            False),
@@ -64,6 +70,9 @@ def main():
     for name, cmd, spends in STAGES[names.index(start):]:
         if name == "draft" and not DRAFTING_ENABLED:
             results.append((name, "paused (DRAFTING_ENABLED=False)", 0))
+            continue
+        if name == "today" and not TODAY_ENABLED:
+            results.append((name, "paused (TODAY_ENABLED=False)", 0))
             continue
         if spends and NO_SPEND:
             results.append((name, "skipped (--no-spend)", 0))

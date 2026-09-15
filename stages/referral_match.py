@@ -121,6 +121,13 @@ def _overseas(location: str) -> bool:
     return any(re.search(rf"\b{re.escape(m.strip())}\b", loc) for m in OVERSEAS)
 
 
+# While Juhi clears a backlog (2026-09-15), no row leaves the Referrals tab
+# for any reason other than her marking it. A role that stops qualifying or
+# ages out of the Jobs ledger is still carried across the rebuild. Flip to
+# False once she is caught up and the tab should go back to "worth an ask now".
+KEEP_ALL_ROWS = True
+
+
 def parse_posted(value: str):
     if not value:
         return None
@@ -357,7 +364,9 @@ def main():
     prior, touched = {}, []
     for r in existing:
         k = role_key(r.get("company", ""), r.get("title", ""))
-        if any((r.get(c, "") or "").strip() for c in ("sent_1", "sent_2", "sent_rec", "applied")):
+        acted = any((r.get(c, "") or "").strip()
+                    for c in ("sent_1", "sent_2", "sent_rec", "applied"))
+        if acted or KEEP_ALL_ROWS:
             touched.append((k, r))
         # keep the richest prior copy of a role (the one with a draft)
         if k not in prior or (r.get("note_to_send", "") or "").strip():
